@@ -1,0 +1,365 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+<!-- R Commander Markdown Template -->
+
+"Homework Assignment 2 - Big Data and Machine Learning"
+=======================
+
+### Elli Linek
+
+### `r as.character(Sys.Date())`
+
+#Pre-requisites
+```{r echo=FALSE}
+knitr::opts_chunk$set(comment=NA, prompt=TRUE, out.width=750, fig.height=8, fig.width=8)
+library(Rcmdr)
+library(car)
+library(RcmdrMisc)
+library(base, warn.conflicts = FALSE)
+library(survey, warn.conflicts = FALSE)
+library(haven, warn.conflicts = FALSE)
+library(readxl, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)
+```
+
+```{r echo=FALSE}
+library(rgl)
+knitr::knit_hooks$set(webgl = hook_webgl)
+```
+
+#Getting the data
+```{r data}
+load("HW2datasets.RData")
+
+head(knntest.x)
+summary(knntest.x)
+summary(knntrain.x)
+
+head(knntest.y)
+summary(knntest.y)
+summary(knntrain.y)
+
+#plot(knntest.x)
+#plot(knntrain.x)
+
+```
+
+
+#Task A - optimal k
+```{r task A}
+knntrain <- cbind(knntrain.x,as.data.frame(knntrain.y))
+head(knntrain)
+summary(knntrain)
+
+set.seed(2016751)
+
+folds <- 10
+seq <- seq(1, 21, 2) #(1-21 was the given rnge for k, 2 is set to be the uneven numbers)
+cntl <- trainControl(method = "cv", number = folds, returnResamp = "all")
+knn  <- train(x = knntrain.x, y = knntrain.y, method = "knn", tuneGrid = data.frame(.k = seq), trControl = cntl)
+plot(knn, lwd=3, col=2)
+
+# Means plots representing fold averages/standard deviations for accuracy
+cvresults<-knn$resample
+cvresults<-cvresults[order(cvresults[,3], cvresults[,4]),]
+cvresults<-within(cvresults, {kfact<-as.factor(k)})
+with(cvresults, plotMeans(Accuracy, kfact, error.bars="se", col=2, lwd=3))
+knn$bestTune
+# Between 1 and 21, 21 was calculated to be the optimal k; 
+# Before setting the limit to 21 (as asked in the task) I tested 1-100, cause I wanted to see when the curve is going down again and has its "natural" highest popint. In that case, 75 was the optimal k, quite high but on a data set of 1000 cases it might be a k not to be too large (that is what i was worrying about)
+
+```
+
+
+#Task B - applying k, knn model
+```{r task B}
+knntest <- cbind(knntest.x,as.data.frame(knntest.y))
+head(knntest)
+summary(knntest)
+
+set.seed(751)
+knn21<-predict(knn, newdata=knntest[,c(1:14)])
+
+# accuracy metrics
+conf.mat<-confusionMatrix(data=knn21, knntest$knntest.y, positive=c("1"))
+conf.mat
+
+####Testing back with Trents hint
+predobject<-knn(knntrain.x, knntest.x, knntrain.y, k=21)
+mean(predobject==knntest.y)
+#i got the same result, so the first way seems to be ok
+
+#Task B2
+#The so trained model reaches an accuracy of 0.568, so about 57% of cases are predicted right.
+#That is just a little bit better than throwing a coin (likje having a 50:50 chance); it leads me to the interpretaion, that i have to deal with a lot cases of "mis-prediction", the model could and should be optimalized. In comparison, the no information rate i almost the same!
+
+#INTERPRETATION O THE MATRIX
+#
+#          Reference
+#Prediction   0   1
+#         0 210 153
+#         1  63  74
+#
+#Sensitivity : 0.3260          
+#Specificity : 0.7692  
+#
+# -> the sensitivity level (true positive rate) is very low with 0.326, the specificity compared to that (being the true negative rate) is much higher, even though it does not reach the level of the example we saw on the lectures.
+
+
+```
+
+#Task C - checking the varaible ranges
+```{r task C}
+boxplot(knntrain, labels = T,las=2)
+boxplot(knntest, labels = T,las=2)
+
+#the income variable is haveing an extraordinary wider range compared to all other variables within both data sets (training and test data)
+
+#medhhincome
+knntrain.x$medhhincome<-scale(knntrain.x$medhhincome)
+knntrain$medhhincome<-scale(knntrain$medhhincome)
+summary(knntrain)
+
+knntest.x$medhhincome<-scale(knntest.x$medhhincome)
+knntest$medhhincome<-scale(knntest$medhhincome)
+summary(knntest)
+
+#now i will have to deal with negative income values, but in terms of the prediction model that kind of standardization might work, we'll find out
+
+boxplot(knntrain, labels = T,las=2)
+boxplot(knntest, labels = T,las=2)
+
+#I will try to standardize more variables than income, in order to achieve a better acuracy level
+
+# #I tried furhter scaling:
+# 
+# #numhhs
+# knntrain.x$numhhs<-scale(knntrain.x$numhhs)
+# knntrain$numhhs<-scale(knntrain$numhhs)
+# summary(knntrain)
+# 
+# knntest.x$numhhs<-scale(knntest.x$numhhs)
+# knntest$numhhs<-scale(knntest$numhhs)
+# summary(knntest)
+# 
+# #huownerocc
+# knntrain.x$huownerocc<-scale(knntrain.x$huownerocc)
+# knntrain$huownerocc<-scale(knntrain$huownerocc)
+# summary(knntrain)
+# 
+# knntest.x$huownerocc<-scale(knntest.x$huownerocc)
+# knntest$huownerocc<-scale(knntest$huownerocc)
+# summary(knntest)
+# 
+# #hhwithkids
+# knntrain.x$hhwithkids<-scale(knntrain.x$hhwithkids)
+# knntrain$hhwithkids<-scale(knntrain$hhwithkids)
+# summary(knntrain)
+# 
+# knntest.x$hhwithkids<-scale(knntest.x$hhwithkids)
+# knntest$hhwithkids<-scale(knntest$hhwithkids)
+# summary(knntest)
+# 
+# #famsaabovpov
+# knntrain.x$famsaabovpov<-scale(knntrain.x$famsaabovpov)
+# knntrain$famsaabovpov<-scale(knntrain$famsaabovpov)
+# summary(knntrain)
+# 
+# knntest.x$famsaabovpov<-scale(knntest.x$famsaabovpov)
+# knntest$famsaabovpov<-scale(knntest$famsaabovpov)
+# summary(knntest)
+# 
+# #popnotinlf
+# knntrain.x$popnotinlf<-scale(knntrain.x$popnotinlf)
+# knntrain$popnotinlf<-scale(knntrain$popnotinlf)
+# summary(knntrain)
+# 
+# knntest.x$popnotinlf<-scale(knntest.x$popnotinlf)
+# knntest$popnotinlf<-scale(knntest$popnotinlf)
+# summary(knntest)
+# 
+# #popnevmarried
+# knntrain.x$popnevmarried<-scale(knntrain.x$popnevmarried)
+# knntrain$popnevmarried<-scale(knntrain$popnevmarried)
+# summary(knntrain)
+# 
+# knntest.x$popnevmarried<-scale(knntest.x$popnevmarried)
+# knntest$popnevmarried<-scale(knntest$popnevmarried)
+# summary(knntest)
+# 
+# #hsorless
+# knntrain.x$hsorless<-scale(knntrain.x$hsorless)
+# knntrain$hsorless<-scale(knntrain$hsorless)
+# summary(knntrain)
+# 
+# knntest.x$hsorless<-scale(knntest.x$hsorless)
+# knntest$hsorless<-scale(knntest$hsorless)
+# summary(knntest)
+# 
+# #checking the data sets back
+# boxplot(knntrain, labels = T,las=2)
+# boxplot(knntest, labels = T,las=2)
+# 
+# 
+# #landsqmile
+# knntrain.x$landsqmile<-scale(knntrain.x$landsqmile)
+# knntrain$landsqmile<-scale(knntrain$landsqmile)
+# summary(knntrain)
+# 
+# knntest.x$landsqmile<-scale(knntest.x$landsqmile)
+# knntest$landsqmile<-scale(knntest$landsqmile)
+# summary(knntest)
+# 
+# 
+# #checking the data sets back again
+# boxplot(knntrain, labels = T,las=2)
+# boxplot(knntest, labels = T,las=2)
+# 
+# 
+# #medagehhder
+# knntrain.x$medagehhder<-scale(knntrain.x$medagehhder)
+# knntrain$medagehhder<-scale(knntrain$medagehhder)
+# summary(knntrain)
+# 
+# knntest.x$medagehhder<-scale(knntest.x$medagehhder)
+# knntest$medagehhder<-scale(knntest$medagehhder)
+# summary(knntest)
+# 
+# #medlenresidence
+# knntrain.x$medlenresidence<-scale(knntrain.x$medlenresidence)
+# knntrain$medlenresidence<-scale(knntrain$medlenresidence)
+# summary(knntrain)
+# 
+# knntest.x$medlenresidence<-scale(knntest.x$medlenresidence)
+# knntest$medlenresidence<-scale(knntest$medlenresidence)
+# summary(knntest)
+# 
+# #checking the data sets back again
+# boxplot(knntrain, labels = T,las=2)
+# boxplot(knntest, labels = T,las=2)
+
+#Note: I went on in some kind of "exploration mood" in order to detect the optimal level of standardization. I have to admit, the concept does not seem perfectly right to me, its like bringing the data "into shape" in order to reach better results, but does it lead to a better model? I am looking forward to discuss that with you, I would like to understand, what are the optimal limits of standardizing varaibles - is there some kind of threshold, what kind of range is ok for the model, and what is too large?
+
+#only scaling the income varaibles leads to a result, where still varaibles with higher ranges are inluded but not such on such an "outrageous" scale as income varaible was.
+```
+
+
+
+
+#Task D
+```{r task D}
+#repeating task a, now that the data set has the one standardizted varaible
+set.seed(2016751)
+
+folds <- 10
+seq <- seq(1, 21, 2) 
+#I set the upper bound to 100 after testing several smaller bounds, trying to find when the plot gets lower again in order to find the optimal k
+cntl <- trainControl(method = "cv", number = folds, returnResamp = "all")
+knn  <- train(x = knntrain.x, y = knntrain.y, method = "knn", tuneGrid = data.frame(.k = seq), trControl = cntl)
+plot(knn, lwd=3, col=2)
+
+# Means plots representing fold averages/standard deviations for accuracy
+cvresults<-knn$resample
+cvresults<-cvresults[order(cvresults[,3], cvresults[,4]),]
+cvresults<-within(cvresults, {kfact<-as.factor(k)})
+with(cvresults, plotMeans(Accuracy, kfact, error.bars="se", col=2, lwd=3))
+knn$bestTune
+
+#the new optimal k is 19 (i tested several levels of standardization, but more/further scaling did not lead to better results, so i stayed with this version, only "taking care" for the variable with the largest range), 
+```
+
+
+#Task E
+```{r task E}
+#repeating task B
+set.seed(751)
+knn19<-predict(knn, newdata=knntest[,c(1:14)])  #14 in order to leave the joined y-varaible out
+
+# accuracy metrics
+conf.mat<-confusionMatrix(data=knn19, knntest$knntest.y, positive=c("1"))
+conf.mat
+
+####Testing back with Trents hint
+predobject<-knn(knntrain.x, knntest.x, knntrain.y, k=19)
+mean(predobject==knntest.y)
+
+
+#After scaling a the income variable and trying several levels of standardization, i sticked with only scaling income, applying the new optimal k q9, but now i am facing even a slightly less accuracy level with 0.548.
+
+#INTERPRETATION OF MATRIX
+#
+#
+#          Reference
+#Prediction   0   1
+#         0 195 148
+#         1  78  79
+#
+# -> I see, that i have to deal with quite some false positive as well as false negative classifictions! ITs almost equal to predict 1 based on the reference 0 or 1 (78 vs 79). With that i would consider, the model not to work as an optimal prediction model.
+#
+#Sensitivity : 0.3480         
+#Specificity : 0.7143
+#
+# -> Especially the sensitivity level is very low, compared to the example we saw in the lectures! But, compared to the first model, i can see a slightly slighly higher sensitivity, so a little higher true positive rate but at the same time having to dwal with a little lower true negative rate here.  The overall accuracy has not improved/increased.
+
+#For comparision, matrix from the first model (k=21)
+#Sensitivity : 0.3260          
+#Specificity : 0.7692  
+
+#Note: I am very interested in your solutuion on that homework, comparing what scaling actions you took, what results and improvements you reached. With these results i reached here i would not apply the model in order to predict the phone numbers!
+```
+
+#Trying a higher k on my own in order to find out what results i may achieve...
+
+```{r task final try, higher k}
+
+set.seed(2016751)
+
+folds <- 10
+seq <- seq(1, 100, 2) 
+#I set the upper bound to 100 after testing several smaller bounds, trying to find when the plot gets lower again in order to find the optimal k
+cntl <- trainControl(method = "cv", number = folds, returnResamp = "all")
+knn  <- train(x = knntrain.x, y = knntrain.y, method = "knn", tuneGrid = data.frame(.k = seq), trControl = cntl)
+plot(knn, lwd=3, col=2)
+
+# Means plots representing fold averages/standard deviations for accuracy
+cvresults<-knn$resample
+cvresults<-cvresults[order(cvresults[,3], cvresults[,4]),]
+cvresults<-within(cvresults, {kfact<-as.factor(k)})
+with(cvresults, plotMeans(Accuracy, kfact, error.bars="se", col=2, lwd=3))
+knn$bestTune
+
+# k=47
+
+
+set.seed(751)
+knn47<-predict(knn, newdata=knntest[,c(1:14)])  #14 in order to leave the joined y-varaible out
+
+# accuracy metrics
+conf.mat<-confusionMatrix(data=knn47, knntest$knntest.y, positive=c("1"))
+conf.mat
+
+####Testing back with Trents hint
+predobject<-knn(knntrain.x, knntest.x, knntrain.y, k=47)
+mean(predobject==knntest.y)
+
+# i do not get over accuracy rate of 0.578 (not much better compared to the smaller Ks)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

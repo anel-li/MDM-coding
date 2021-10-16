@@ -1,0 +1,173 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+<!-- R Commander Markdown Template -->
+
+"Homework Assignment 3 - Big Data and Machine Learning"
+=======================
+
+### Elli Linek
+
+### `r as.character(Sys.Date())`
+
+#Pre-requisites
+```{r echo=FALSE}
+knitr::opts_chunk$set(comment=NA, prompt=TRUE, out.width=750, fig.height=8, fig.width=8)
+library(Rcmdr)
+library(RcmdrMisc)
+library(base, warn.conflicts = FALSE)
+library(readxl, warn.conflicts = FALSE)
+library(survey, warn.conflicts = FALSE)
+library(haven, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)
+library(rpart, warn.conflicts = FALSE)
+library(randomForest, warn.conflicts = FALSE)
+library(rattle, warn.conflicts = FALSE)
+library(party, warn.conflicts = FALSE)
+library(pROC, warn.conflicts = FALSE)
+```
+
+```{r echo=FALSE}
+library(rgl)
+knitr::knit_hooks$set(webgl = hook_webgl)
+```
+
+#Getting the data
+```{r data}
+load("HW3datasets.RData")
+
+head(treetest)
+summary(treetest)
+#plot(treetest)
+head(treetrain)
+summary(treetrain)
+#plot(treetrain)
+
+```
+
+
+#Task A 
+```{r task A}
+#modeling the tree, maximum depth 2
+require(rpart)
+set.seed(2016)
+tree1<-rpart(formula = hasphone~ ., data = treetrain, method = "class", na.action = na.rpart, parms = list(split = "information"), y = TRUE, control = rpart.control(maxdepth = 2))
+
+#trying the gini index, just to have a comparison, grwoing a second tree based on the same seed
+set.seed(2016)
+tree1.1<-rpart(formula = hasphone~ ., data = treetrain, method = "class", na.action = na.rpart, parms = list(split = "gini"), y = TRUE, control = rpart.control(maxdepth = 2))
+
+#since my outcome variable y is a factor, i used class as the method
+
+#I left the surrogate definition to the default option of the package, in order not to influence the tree desicion on that (first of all i wanted to have a look at it)
+```
+
+
+#Task B
+```{r taskC}
+#plotting the tree
+require(rattle)
+fancyRpartPlot(tree1, main="Decision Tree predicting hasphone, based on the treetrain dataset")
+
+```
+
+#Task C
+```{r task C}
+#The first split is based on the variable "medlenresidence < 12", providing information about the median householder  years of residence, where i have two directions "growing out of" - being less or above 12 years. 
+
+#The second split is based on the varaible "medhhincome <62e+3", focussing on the current year median household income of the households within the training data set (where the information is available), having the decision set to be below or above 62,000 dollars (i suppose) .
+
+#I have three final nodes in the plot of the tree, meaning there are three final nodes in the tree based on the given maximum depth of two.
+
+#The final node with the highest percentage of "hasphone=1" is the node that has the number 7 above it (i think its named 7 because node name 4 and 5 would have been reserved to the next node split on the other side of the tree, growing out of node 2). 
+#Here we have an amount of 68% cases where the hasphone variable is indicated to be positive (hasphone=1), representing in total 16% of all cases from the data set.
+#The blue shaded nodes indicate a higher amount of hasphone=1 cases, the green shaded nodes tend into the direction of 0, so no phone given. The darker the shade of the nodes color, the higher the difference between the amount of 0 and 1 cases in the node, that leads to the decision to indicate the node with a 0 or 1 in the first line.
+
+```
+
+
+
+
+#Task D
+```{r task D}
+#predicting "hasphone", applying the tree model to the test data set
+set.seed(2016)
+tree1pred<-predict(tree1, newdata=treetest[,c(1:15)], type="class")
+tree1confuse<-confusionMatrix(tree1pred, treetest$hasphone, positive=c("1"))
+tree1confuse
+
+#The so trained model reaches an accuracy level of 0.588, so almost 59% of cases were predicted right ithin the test data set based on the treecoming from the training data set. 
+#The sensitivity level (true positive rate) is very low (with 0.189 almost 19%), the specificity compared to that (being the true negative rate) is much higher, with 92%.
+#Still, there seems to be a lot of noise in the so built model.
+
+```
+
+
+#Task E
+```{r task E}
+#modeling the tree, maximum depth 1o
+require(rpart)
+set.seed(2016)
+tree2<-rpart(formula = hasphone~ ., data = treetrain, method = "class", na.action = na.rpart, parms = list(split = "information"), y = TRUE, control = rpart.control(maxdepth = 10))
+
+#plotting the tree
+require(rattle)
+fancyRpartPlot(tree2, main="Decision Tree predicting hasphone, based on the treetrain dataset, depth 10")
+
+#predicting based on test data, confusion matrix
+set.seed(2016)
+tree2pred<-predict(tree2, newdata=treetest[,c(1:15)], type="class")
+tree2confuse<-confusionMatrix(tree2pred, treetest$hasphone, positive=c("1"))
+tree2confuse
+
+#The tree2 model leads to a slightly smaller accuracy level, talking about the third number behind the commata. It still reaches a level of of 59% of accuracy.
+#The sensitivity increased from 18% to 28%, whereas the specifity level devreased to 84%, meaning I have a higher amount of true positive predicted cases and at the same time some less true negative cases to be taken into account. 
+#i suppose the level of depth should be "played around" a bit with in order to determine the optimal size of the tree.
+```
+
+
+#Task F
+```{r task F}
+
+require(randomForest, quietly=TRUE)
+
+x=(sqrt(14))
+x
+
+#Building the Random Forest model: There are 14 predictors, so mtry defaults to (sqrt(14))=3.7417; I will leave the mtry definition out of the formula, in order to leave it to the deafault, that is more accurate then the rounded mtry-value I just calculated as the squareroot of the number of predictors.
+
+set.seed(2016)
+forest1<-randomForest(hasphone~ ., data=treetrain[,c(1:15)], ntree=1000, importance=TRUE, na.action=na.omit, replace=FALSE)
+
+#Plot the Out-of-Bag Error rate as a function of the number of trees in the forest
+plot(x=c(1:1000),y=forest1$err.rate[,1], xlab="Number of Trees", ylab="Error", type="n")
+lines(x=c(1:1000),y=forest1$err.rate[,1], xlab="Number of Trees", ylab="Error", col=2, lty=1, lwd=2)
+
+#Plot the variable importance measures
+# First Plot is mean decrease in accuracy (based on OOB Permutations)
+varImpPlot(forest1, type=1, col="darkblue", sort=TRUE, n.var=14, cex=1.5)
+
+# Second plot is based on avg. decrease in the Gini Index
+varImpPlot(forest1, type=2, col="darkred", sort=TRUE, n.var=14, cex=1.5)
+
+# Plot the ROC curve corresponding to the Random Forest
+require(pROC, quietly=TRUE)
+aucc<-roc(as.numeric(forest1$y)-1, forest1$votes[,2], thresholds=seq(from=0, to=1, by=.1))
+plot.roc(x=as.numeric(forest1$y)-1, pred=forest1$votes[,2], thresholds=seq(from=0, to=1, by=.1), ylab="Sensitivity", xlab="1-Specificity") 
+
+#predicting based on test data, confusion matrix
+set.seed(2016)
+forest1pred<-predict(forest1, newdata=treetest[,c(1:15)], type="class")
+forest1confuse<-confusionMatrix(forest1pred, treetest$hasphone, positive=c("1"))
+forest1confuse
+
+```
+
+
+
+
+
+

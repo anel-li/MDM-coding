@@ -1,0 +1,108 @@
+---
+title: "Machine Learning II"
+subtitle: "Assignment 01"
+output: html_notebook
+---
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(forcats)
+library(class)
+library(e1071)
+library(caret)
+library(pROC)
+```
+
+## Data
+
+```{r}
+load("soep.RData")
+
+summary(soep_train)
+summary(soep_test)
+```
+
+```{r}
+soep_train$D_inc13 <- fct_explicit_na(soep_train$D_inc13)
+soep_test$D_inc13 <- fct_explicit_na(soep_test$D_inc13)
+
+soep_train <- drop_na(soep_train)
+soep_test <- drop_na(soep_test)
+```
+
+```{r}
+X_train <- scale(model.matrix(D_inc14 ~ ., data = soep_train)[,-1])
+X_test <- scale(model.matrix(D_inc14 ~ ., data = soep_test)[,-1])
+y_train <- soep_train$D_inc14
+y_test <- soep_test$D_inc14
+```
+
+```{r}
+summary(y_train)
+summary(y_test)
+```
+
+## kNN & logit models
+
+```{r}
+set.seed(34545)
+tune <- tune.knn(X_train, y_train, k = 1:20, tunecontrol = tune.control(sampling = "cross"), cross = 10) 
+summary(tune)
+plot(tune)
+```
+
+```{r}
+logit <- glm(D_inc14 ~ ., data = soep_train, family = binomial)
+summary(logit)
+```
+
+## Prediction performance
+
+```{r}
+y_knn <- knn(X_train, X_test, y_train, k = 19, prob = TRUE)
+yp_knn <- 1 - attributes(y_knn)$prob
+```
+
+```{r}
+yp_logit <- predict(logit, newdata = soep_test, type = "response")
+```
+
+```{r}
+roc_knn <- roc(y_test, yp_knn)
+roc_knn
+roc_logit <- roc(y_test, yp_logit)
+roc_logit
+```
+
+```{r}
+ggroc(list(Logit = roc_logit, 
+           KNN = roc_knn)) +
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
+               color="darkgrey", linetype="dashed") +
+  theme(legend.title = element_blank())
+```
+
+## Classification thresholds
+
+```{r}
+y_logit5 <- as.factor(ifelse(yp_logit > 0.5, "nonresponse", "response"))
+y_logit2 <- as.factor(ifelse(yp_logit > 0.2, "nonresponse", "response"))
+```
+
+```{r}
+logit_t <- coords(roc_logit, x = "best", best.method = "closest.topleft", best.weights = c(1, 0.1), transpose = TRUE)
+logit_t
+```
+
+```{r}
+y_logitt <- as.factor(ifelse(yp_logit > logit_t[1], "nonresponse", "response"))
+```
+
+```{r}
+confusionMatrix(y_logit5, y_test, mode = "everything", positive = "nonresponse")
+confusionMatrix(y_logit2, y_test, mode = "everything", positive = "nonresponse")
+confusionMatrix(y_logitt, y_test, mode = "everything", positive = "nonresponse")
+```
+

@@ -1,0 +1,138 @@
+---
+title: "Homework Assignment 1 - Big Data and Machine Learning"
+author: "Elli Linek"
+date: "7. April 2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Pre-requisites
+```{r}
+library(base, warn.conflicts = FALSE)
+library(survey, warn.conflicts = FALSE)
+library(haven, warn.conflicts = FALSE)
+library(readxl, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+```
+
+#Getting the data
+```{r data}
+fldata1 <- read_excel("FLCounties2010.xls")
+head(fldata1)
+summary(fldata1)
+#-> i see a difference in the scale of the hispanic variable and the urban/suburban variable, 0-1 versus 0-100, I will have to set the same scale for all of the variables!
+
+#I created an data file, where all varibales are on the same scale (percentages)
+fldata <- read_excel("FLCounties2010%.xls")
+head(fldata)
+summary(fldata)
+
+plot(fldata)
+
+plot(fldata$PCTHispanic)
+boxplot(fldata$PCTHispanic)
+plot(fldata$PCTUrban_MSG)
+boxplot(fldata$PCTUrban_MSG)
+plot(fldata$PCTSuburban_MSG)
+boxplot(fldata$PCTSuburban_MSG)
+```
+
+
+
+
+
+#Task A - clustering data into three(k) clusters/groups
+```{r task A}
+#relevant variables: PCTHispanic, PCTUrban_MSG, PCTUrban_MSG columns
+set.seed(10)
+Vars<-names(fldata)[c(2,6,7)] 
+fl3cluster_10<-kmeans(na.omit(fldata[,Vars]), centers=3)
+table(fl3cluster_10$cluster)
+t(round(fl3cluster_10$centers,1))
+#summary(fl3cluster_10)
+attributes(fl3cluster_10)
+fldata$cl10assignments <- 0
+fldata$cl10assignments <- as.vector(fl3cluster_10$cluster)
+table(fldata$cl10assignments)
+
+set.seed(99)
+Vars<-names(fldata)[c(2,6,7)]
+fl3cluster_99<-kmeans(na.omit(fldata[,Vars]), centers=3)
+table(fl3cluster_99$cluster)
+t(round(fl3cluster_99$centers,1))
+#summary(fl3cluster_99)
+attributes(fl3cluster_99)
+fldata$cl99assignments <- 0
+fldata$cl99assignments <- as.vector(fl3cluster_99$cluster)
+table(fldata$cl99assignments)
+```
+
+#Task B - within cluster sums of squares, sorted 
+```{r within cluster ss}
+fl3cluster_10$withinss
+fl3cluster_99$withinss
+
+#sorted
+sort(fl3cluster_10$withinss)
+sort(fl3cluster_99$withinss)
+
+#Once the values are sorted, the within ss values equal for both approaches.Even though i would have expected some differences. But i double checked and could not find a mistake so far.
+```
+
+
+#Task C - Number of counties per cluster, comparison
+```{r # of counties}
+table(fl3cluster_99$cluster,fl3cluster_99$cluster)
+
+#from task A:
+table(fl3cluster_10$cluster)
+table(fl3cluster_99$cluster)
+
+#A comparison shows, that both solutions have the same amount of units within the clusters. Within task A I saw, that the allocation was different (like the clusters were differently named, but had the same number of units allocated). In order to make clear what i mean, i copied the single tables from task A to show here again the order of the clusters. It shows, that cluster 1 from 10-seed solution is similar to cluster 2 from the 99-seed solution, etc.
+
+```
+
+
+#Task D - series of cluster solution
+```{r series of clusters}
+set.seed(2016)
+fl3cluster_2016 <- kmeans(na.omit(fldata[,Vars]), centers=3,nstart = 20)
+n<-10
+Flcluster=numeric(n)
+for (i in 1:n)
+{Flcluster[i] = kmeans(fldata[,Vars],i,nstart=20)$tot.withinss}
+plot(1:10, Flcluster,col="darkred", lwd=3, xlab="Number of Clusters", type="b", ylab="Total Within Cluster SS")
+```
+
+
+#Task E - 4 Cluster solution
+```{r 4 cluster solution}
+#1: 4 cluster solution
+set.seed(4)
+fl4cluster_4 <- kmeans(na.omit(fldata[,Vars]), centers=4,nstart = 20)
+t(round(fl4cluster_4$centers,0))[1,]
+
+#2: Characterisitcs of clusters
+t(round(fl4cluster_4$centers,1))
+#1st cluster: low rate of Hispanics, very low rate of suburban counties!
+#2nd cluster: Very high rate of Urban counties, moderate rate of Hispanics, but low rate on suburban counties.
+#3rd cluster: moderate rate of Hispanics, high rate of suburbans and moderate but under average rate of urban counties
+#4th cluster: high rate of Hispanic population, high rate of suburban population and a very low rate of urban population
+
+#3: Median percentage for rural areas for counties in the first cluster out of 4
+fldata$cl4assignments <- 0
+fldata$cl4assignments <- as.vector(fl4cluster_4$cluster)
+median(round(fldata$PCTRural_MSG[fldata$cl4assignments==1],1))
+
+#4: prioritized clusters
+t(round(fl4cluster_4$centers,1))
+#I would decide to target cluster 2 and cluster 4 based on the asked characteristics for the survey target population
+```
+
+
+

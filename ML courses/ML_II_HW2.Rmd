@@ -1,0 +1,198 @@
+---
+title: "Machine Learning II"
+subtitle: "Assignment 02"
+output: html_notebook
+---
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ranger)
+library(xgboost)
+library(pROC)
+```
+
+## Data
+
+```{r}
+load("apipop.RData")
+
+summary(apipop_train)
+summary(apipop_test)
+```
+
+```{r}
+apipop_train$growth <- NULL
+apipop_train$sch.wide <- NULL
+
+apipop_test$growth <- NULL
+apipop_test$sch.wide <- NULL
+```
+
+```{r}
+apipop_train <- drop_na(apipop_train)
+apipop_test <- drop_na(apipop_test)
+```
+
+## Caret 
+
+```{r}
+ctrl1  <- trainControl(method = "cv",
+                      number = 10,
+                      verboseIter = TRUE)
+```
+
+```{r}
+ctrl2  <- trainControl(method = "cv",
+                      number = 10,
+                      verboseIter = TRUE,
+                      classProbs = TRUE,
+                      summaryFunction = twoClassSummary)
+```
+
+```{r}
+ctrl3  <- trainControl(method = "cv",
+                      number = 10,
+                      verboseIter = TRUE,
+                      classProbs = TRUE,
+                      summaryFunction = twoClassSummary,
+                      sampling = "smote")
+```
+
+## Extra-Trees
+
+```{r}
+grid <- expand.grid(mtry = c(round(sqrt(ncol(apipop_train))),
+                             round(log(ncol(apipop_train)))),
+                    splitrule = c("extratrees"),
+                    min.node.size = c(5, 10))
+grid
+```
+
+```{r}
+set.seed(75345)
+xtree1 <- train(api00 ~ . - awards,
+                data = apipop_train,
+                method = "ranger",
+                trControl = ctrl1,
+                tuneGrid = grid)
+```
+
+```{r}
+xtree1
+```
+
+```{r}
+set.seed(75345)
+xtree2 <- train(awards ~ . - api00,
+                data = apipop_train,
+                method = "ranger",
+                trControl = ctrl2,
+                tuneGrid = grid,
+                metric = "ROC")
+```
+
+```{r}
+xtree2
+```
+
+```{r}
+set.seed(75345)
+xtree3 <- train(awards ~ . - api00,
+                data = apipop_train,
+                method = "ranger",
+                trControl = ctrl3,
+                tuneGrid = grid,
+                metric = "ROC")
+```
+
+```{r}
+xtree3
+```
+
+## XGBoost
+
+```{r}
+grid <- expand.grid(max_depth = c(1, 3, 5, 7),
+                    nrounds = c(250, 500, 750),
+                    eta = c(0.05, 0.01),
+                    min_child_weight = 10,
+                    subsample = 0.7,
+                    gamma = 0,
+                    colsample_bytree = 1)
+grid
+```
+
+```{r}
+set.seed(75345)
+xgb1 <- train(api00 ~ . - awards,
+              data = apipop_train,
+              method = "xgbTree",
+              trControl = ctrl1,
+              tuneGrid = grid)
+```
+
+```{r}
+xgb1
+```
+
+```{r}
+set.seed(75345)
+xgb2 <- train(awards ~ . - api00,
+              data = apipop_train,
+              method = "xgbTree",
+              trControl = ctrl2,
+              tuneGrid = grid,
+              metric = "ROC")
+```
+
+```{r}
+xgb2
+```
+
+## Prediction 
+
+```{r}
+p_xtree1 <- predict(xtree1, newdata = apipop_test)
+p_xgb1 <- predict(xgb1, newdata = apipop_test)
+
+p_xtree2 <- predict(xtree2, newdata = apipop_test, type = "prob")
+p_xtree3 <- predict(xtree3, newdata = apipop_test, type = "prob")
+p_xgb2 <- predict(xgb2, newdata = apipop_test, type = "prob")
+
+c_xtree2 <- predict(xtree2, newdata = apipop_test)
+c_xtree3 <- predict(xtree3, newdata = apipop_test)
+c_xgb2 <- predict(xgb2, newdata = apipop_test)
+```
+
+```{r}
+postResample(pred = p_xtree1, obs = apipop_test$api00)
+postResample(pred = p_xgb1, obs = apipop_test$api00)
+```
+
+```{r}
+confusionMatrix(c_xtree2, apipop_test$awards, mode = "everything", positive = "Yes")
+confusionMatrix(c_xtree3, apipop_test$awards, mode = "everything", positive = "Yes")
+confusionMatrix(c_xgb2, apipop_test$awards, mode = "everything", positive = "Yes")
+```
+
+```{r}
+xtree2_roc <- roc(apipop_test$awards, p_xtree2$Yes)
+xtree3_roc <- roc(apipop_test$awards, p_xtree3$Yes)
+xgb_roc <- roc(apipop_test$awards, p_xgb2$Yes)
+
+xtree2_roc
+xtree3_roc
+xgb_roc
+```
+
+```{r}
+ggroc(list(ExtraTree = xtree2_roc, 
+           ExTSMOTE = xtree3_roc, 
+           XGBoost = xgb_roc)) +
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
+               color="darkgrey", linetype="dashed") +
+  theme(legend.title = element_blank())
+```
