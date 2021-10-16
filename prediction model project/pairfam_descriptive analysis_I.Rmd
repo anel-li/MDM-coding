@@ -1,0 +1,58 @@
+---
+title: "pairfam_bivariate"
+author: "elli linek"
+date: "14 Dezember 2018"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(skimr)
+library(mlbench)
+library(psych)
+```
+
+
+```{r loading merged data}
+pf01 <- read.csv(file = 'pairfam01.csv')
+head(pf01, n=10) #first 10 rows
+dim(pf01)        #dimensions of data set (rows and columns)
+sapply(pf01, class) #overview classification of variables
+```
+
+
+
+
+```{r descriptive analysis I}
+#summary(pf01)
+psych::describe(pf01)
+```
+
+
+```{r descriptive analysis II}
+skim(pf01)
+```
+
+
+## Income Plots
+
+```{r pairfam, echo=FALSE}
+plot(pf01$inc1)
+plot(pf01$inc2)
+plot(pf01$intdur)
+```
+```{r dropping the generated variables}
+#drop <- c("xvariable name1","variable name2")
+#pf02 = pf01[,!(names(pf01) %in% drop)]
+
+
+pf02 = pf01[,!grepl("*ehc",names(pf01))]
+summary(pf02)
+
+```
