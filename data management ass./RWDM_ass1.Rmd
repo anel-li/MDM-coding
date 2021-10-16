@@ -1,0 +1,308 @@
+---
+title: "Assignment1 - Real World Data Management Course SURV665"
+author: "Elli Linek"
+date: "8 6 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Setup: Getting the data, organizing the prerequisites within R
+
+##Download of relevant data sets:
+Source: https://ssl.isr.umich.edu/hrs/files2.php
+Download of 6 files: 3 da files, 3 sta files (ech file for the years 1996 1998 and 2000)
+Saved under: "C:\Users\elli\IPSDS\SURV665_Introduction to Real World Data Management Section 1_summer 2019\assignments\ass1"
+
+##Setting up R:
+```{r prerequisites}
+#tidyverse is already installed, so i will load the package and check for updates instead of installing 
+library(tidyverse)
+#update.packages(tidyverse_update())
+
+#setting the according working directory:
+setwd("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass1")
+
+#listing the files in my folder (all files, that are saved there)
+list.files()
+files <- list.files(pattern="*.zip")
+files
+
+#Result: I have 9 files within the folder, so 9 elements are listed, the data files are part of the list (still zip-files), as part of the command line below a list only including the zip-files is stored into the object "data_files"
+
+#folder for unzipped data files created:
+dir.create('unzip')
+
+#loop, in order to unzip all 6 zip files and store them in the new directory:
+seq_along(files)
+dir <- "C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass1/unzip"
+for (i in seq_along(files)) {
+  unzip(zipfile = files[i],
+        exdir = dir)
+}
+
+#removing the zip files from the assignment1 folder:
+file.remove(files)
+
+#6 files were deleted, the R console remarks 6 times "true" as a result
+```
+
+Short intermins resumee: the data files were downloaded, the files were unzipped into a new directory, the original folder was "cleaned", so all should be set up to start to work with the data.
+
+```{r unzipped data files}
+#now that the data files are unzipped, I am setting the working directory to the folder, where the data files are stored:
+
+setwd("./unzip/")
+list.files()
+#258 files are stored within the folder "unzip"
+
+#there are different types of files:
+#Hyy*_R.DA  -> seems to be the raw data file, data entries per line per line/row per row
+#Hyy*_R.DCT -> seems to contain additional meta data such as labels
+#Hyy*_R.DO  -> seems to be a stata support file (not used for R)
+
+#starting to look into the data: 
+#From the assignment task: "For now we will import the “H00A_R” data." 
+#I am follwoing the example from the tasks pdf file:
+file_imp <- "H00A_R"
+str_c(file_imp, ".DCT")
+content <- read_lines(str_c(file_imp,".DCT"))
+head(content)
+summary(content)
+
+# Eliminating two rows: the first and the last one, still following the example:
+content <- content[-1]
+#length(content)
+content <- content[-length(content)]
+head(content)
+summary(content)
+
+```
+
+#Turning the data into a database, creating a loop and defining a function, including all steps of data-management done so far in "single steps"
+```{r data}
+setwd("./unzip/")
+
+#loading the information out of content, storing it in the object meta_data, no header
+meta_data <- read.table(textConnection(content),
+                        header = FALSE,
+                        stringsAsFactors = FALSE)
+
+#checking back the object
+str(meta_data)
+colnames(meta_data) <- c("col", "type", "name", "size", "label")
+head(meta_data)
+
+#extracting the numbers, following the example:
+meta_data$size
+meta_data$size_nr <- as.numeric(str_extract(meta_data$size, "[0-9]+"))
+meta_data$size_nr
+
+#importing and saving data:
+data <- read_fwf(str_c(file_imp, ".DA"),
+                 fwf_widths(meta_data$size_nr,
+                            meta_data$name))
+
+#investigating the dataset, as it was asked for in the task:
+str(data)
+head(data)
+summary(data)
+
+#adding attributes to the variables:
+attr(data[[1]], "lab") <- meta_data$label[1]
+
+#checking the result for the Houshold ID-variable: 
+attributes(data$HHID)
+#The variable is labeled as "HOUSEHOLD IDENTIFIER"
+
+
+#--> until here i was following stept by step the code examples from the assignment paper, now i am starting to create the loop, based on the earlier steps:
+
+#Looping through the tasks, doing that for each column in “data” - so the tasks stay stable, but the column information need to be changed one by one - instead of [[1]] i will take [[i]] into account:
+#each column is "ncol", taking all number of columns into account
+ncol(data)
+for (i in 1:ncol(data)) {
+  attr(data[[i]], "lab") <- meta_data$label[i]
+}
+
+#trying to check other variables:
+attributes(data$PN)
+attributes(data$GPN_SP)
+attributes(data$G1163)
+attributes(data$G1176)
+#Variables until the last column are labeled, even though without further description not all of them are interpretable 
+
+#Finally, create a function called “get_hrs_data()”:
+#First of all i am starting to set uo the function, naming it, and then getting all "relevant tasks" into its body":
+get_hrs_data <- function(x) {
+  content <- read_lines(str_c(x, ".DCT"))  #calling the relevant dct file
+  content <- content[-1]                   #eliminating the rows as done before as well
+  content <- content[-length(content)]
+  #getting the meta data information
+  meta_data <- read.table(textConnection(content),
+                          header = F,
+                          stringsAsFactors = F)
+  colnames(meta_data) <- c("col", "type", "name", "size", "label")
+  size <- as.numeric(str_extract(meta_data$size, "[0-9]+"))
+  #calling the corresponding data file
+  data <- read_fwf(str_c(x, ".DA"),
+                   fwf_widths(size, meta_data$name))
+  for (i in 1:ncol(data)) {
+    attr(data[[i]], "lab") <- meta_data$label[i]
+  }
+  data
+}
+
+#as body of the function i set all the steps i did so far above, now just bringing it together, including the loop per columns, until all coulumns are done
+
+#the function is now part of my environment, now i am trying to call it:
+#taking the "HyyA_R" file for all three years, hoping i can compare these contentual wise.
+
+setwd("./unzip/")
+test1 <- get_hrs_data("H00A_R") #first file in the folder
+head(test1)
+summary(test1)
+
+test2 <- get_hrs_data("H98A_R")
+head(test2)
+
+test3 <- get_hrs_data("H96A_R")
+head(test3)
+
+#Result: the function worked to create the test databases, getting the information out of the dct files as well the da files
+#I was surprised by the different numbers of varibles, but that might be related to differences in the data files themselves (differences between the years)
+#checking the console output i receive some "xxx parsing failures." could you maybe help me out with that? i could not find a way how to check what these message concretely refers to.
+
+```
+
+
+#Importing demographic data 
+```{r demographics}
+#for savety reason i set the unzip folder to be the defined working directory
+setwd("./unzip/")
+
+#Task1: creating dem as object, "calling" my function to load the data etc. into it:
+dem <- get_hrs_data("H96A_R")
+
+#checking the so created data base
+head(dem)
+summary(dem)
+attributes(dem)
+
+#Task2: using the sapply command to have a look at the attributes:
+#?sapply
+sapply(dem, attributes)
+# A list of all variable names and its referring label is shown for all 75 variables
+
+#Task3: Select the variables that have the following labels:
+#• HOUSEHOLD IDENTIFIER        -> HHID
+#• PERSON NUMBER               -> PN
+#• A1B.BIRTHDATE YEAR          -> E638
+#• A2.BORN US?                 -> E639
+#• A3.R EDUCATION              -> E649
+#• A8.R RACE - MASKED          -> E667M
+#• A36.R RELIGIOUS PREF        -> E732
+#• A37.ENGLISH FIRST LANGUAGE  -> E738
+
+#I found all variables, and added the corresponding varaible name
+
+#Task3: Selection of these variables, saving them into another object, so that i know its the selected ones:
+variable_selection <- c("HHID", "PN", "E638", "E639", "E649", "E667M", "E732", "E738")
+dem_selection <- dem[variable_selection]
+
+#Task4: Renaming the last 6 variables, so i select columns 3 to 8 out of the saved selection object
+colnames(dem_selection)[3:8] <- c("A1B", "A2", "A3.R", "A8.R","A36.R", "A37")
+head(dem_selection)
+
+#The table shows the new column names, so it has worked
+
+```
+
+#Import from multiple waves
+```{r multiple waves}
+#I set the unzip folder to be the defined working directory
+setwd("./unzip/")
+
+#Task1: Three data sets shall be imported now
+#so first of all i will give the names of all three into an object, so that i can call this later on, and than i work with the created function:
+years <- c("H96B_R", "H98B_R", "H00B_R")
+data1 <- map(years, get_hrs_data) 
+#I did not want to overwrite my object data from above so i changed the name into data1, i hope that is ok
+
+#checking one of the data sets:
+head(data1[[1]])
+
+#Task2: Ussing again the sapply function to define relevant variable names.
+sapply(data1[[1]], attributes)
+
+#I have three elemnt in data1 in total, so i create a loop to do it for all three of them:
+for (i in seq_along(data1)) {
+  print(sapply(data1[[i]], attributes))
+}
+
+#Now looking for the asked variables:
+#• HOUSEHOLD IDENTIFIER   -> HHID (i found this in all three data sets to be the same)
+#• PERSON NUMBER          -> PN   (i found this in all three data sets to be the same)
+#• B1.RATE HEALTH         -> E769, F1097, G1226
+#• B1A.RATE HEALTH PAST   -> E772, F1104, G1229
+#• B3.HIGH BLOOD PRESSURE -> E781, F1109, G1238
+#• B5.CANCER              -> E801, F1229, G1262
+#I have to admit it was not easy to find all the varaibles, i hope i selected the right ones!
+
+#Further preparation for the "final" loop: 
+#a) selecting the variables, I need to do that for all three elements in data1, i create an empty list, than storing all the varibales there
+variable_selection <- list(NULL)
+#now filling the object with all the information, for each year:
+variable_selection[[1]] <- c("HHID", "PN", "E769", "E772", "E781", "E801")
+variable_selection[[2]] <- c("HHID", "PN", "F1097", "F1104", "F1109", "F1129")
+variable_selection[[3]] <- c("HHID", "PN", "G1226", "G1229", "G1238", "G1262")
+
+#I need to prepare the wave variable too, for task b), i create the object wave to store the years there:
+wave <- c("1996", "1998", "2000")
+wave
+
+#I tried, it did not work, so i create an empty list again to have another object where i can store the data:
+data_object <- list(NULL)
+data_object
+
+#now finally after setting up the objects: looping the steps through, to fulfill the rename etc.:
+for (i in seq_along(data1)) {
+  data_object[[i]] <- data1[[i]][variable_selection[[i]]]
+  colnames(data_object[[i]]) <- c("HHID", "PN", "B1", "B1.A", "B3", "B5")
+  data_object[[i]]$wave <- wave[i]
+}
+
+data_object
+#now there are 3 elements in it
+
+#checking the content of the data_objects:
+head(data_object[[1]])
+summary(data_object[[1]])
+head(data_object[[2]])
+summary(data_object[[2]])
+head(data_object[[3]])
+summary(data_object[[3]])
+
+#Task4: final step, turning it into one data base
+#furhter information on the reduce command needed:
+?reduce
+?rbind
+#now creating the object, combining the data_objects (lists?) there:
+hrs_3waves <- reduce(data_object, rbind)
+head(hrs_3waves)
+summary(hrs_3waves)
+dim(hrs_3waves)
+
+#final step:
+#i am going through the code, reformatting it for easier reading, checking or adding comments...
+
+```
+
+
+
+
+

@@ -1,0 +1,403 @@
+---
+title: "Assignment2 - Real World Data Management Course SURV665"
+author: "Elli Linek"
+date: "18 6 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Setup: Getting the data, organizing the prerequisites within R, creating the function (all from assignment1)
+Download of relevant data sets: Source: https://ssl.isr.umich.edu/hrs/files2.php
+
+Steps and relevant Information:
+1) first of all the identification or the relevant data sets, in order to loas the relevant variables:
+Sources: https://hrs.isr.umich.edu/documentation/questionnaires  and   https://hrs.isr.umich.edu/documentation/question-concordance
+
+
+The final dataset should include the following information from waves 96, 98 and 00.
+• household identifier:                          HHID (should be in all datasets?!) -> key?
+• person number:                                 PN   (should be in all datasets?!) -> key?
+
+-> dataset H96A_R (Section A is needed, (HRS 3) Core) -> dmgr
+• a1b.birthdate year (only from ’96):            1996: E638  
+• a2.born us? (only from ’96):                   1996: E639     
+• a3.r education (only from ’96):                1996: E649
+• a8.r race - masked (only from ’96):            1996: E667M
+• a36.r religious pref (only from ’96):          1996: E732
+• a37.english first language (only from ’96):    1996: E738
+
+-> datasets H96B_R, H98B_R, H00B_R (Section B is relevant for most of these variables) -> health
+• b1. rate health (from ’96, ’98 and ’00):       96/98/00: E769 F1097 G1226  
+• b1a.rate health past (from ’96, ’98 and ’00):  96/98/00: E772 F1100 G1229
+• b3.high blood pressure (from ’96, ’98 and ’00):96/98/00: E781 F1109 G1238
+• b5.cancer (from ’96, ’98 and ’00):             96/98/00: E801 F1129 G1262
+• cesd happy (from ’96, ’98 and ’00)(past weeks):96:       E988 
+• cesd depressed (from ’96, ’98 and ’00):        96:       E985   
+
+-> datasets H98C_R, H00C_R (Section C is relevant for these variables only for these years!) -> health_part2 for 98 and 00
+• cesd happy (from ’96, ’98 and ’00)(past weeks):98/00:         F1496 G1672  
+  (there exsist 2 variables cesd happy, again in section M:     F6304 G6551)
+• cesd depressed (from ’96, ’98 and ’00):        98/00:         F1493 G1669  
+  (there exsist 2 variables cesd depressed,again in section M:  F6301 G6548)
+  
+-> datasets H96F_H, H98F_H, H00F_H (section F is relevant for these varaibles) -> property&value
+• f3.own-rent home (from ’96, ’98 and ’00):      96/98/00: E2226 F2743 G3061 
+• f6.home value $ (from ’96, ’98 and ’00):       96/98/00: E2246 F2760 G3078  (i would expect lots of missings here)
+
+• wave variable (you have to create for long data): needs to be created!
+
+-> in total when i count all the different sections i have 9 data sources to load!
+H96A_R (here i can use my function from assignment 1)
+H96B_R, H98B_R, H00B_R
+H98C_R, H00C_R
+H96F_H, H98F_H, H00F_H
+
+In addition and after searching the web for hints, i found a three variables that might work as a key for joining: 
+1996 (HRS 3) Core	E	HHID	  HOUSEHOLD IDENTIFIER
+1996 (HRS 3) Core	E	PN	    PERSON NUMBER
+1996 (HRS 3) Core	E	ESUBHH	1996 SUB-HOUSEHOLD IDENTIFIER -> i might load that as well!
+[ESUBHH, FSUBHH, GSUBHH - are the names for all three years!]
+
+
+2) Alex' hint was to clean the data within long format and then to covert it to a wide data set, so i will work on that strategy
+3) I will start to import the 96 data set, cause i can use my function from ass1
+4) Based on that i will load and join the other 8 datasets, cleaning them later on  - after merging
+
+#Setting up R:
+```{r unzip}
+library(tidyverse)
+setwd("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass")
+list.files()
+files <- list.files(pattern="*.zip")
+dir.create('unzip')
+seq_along(files)
+dir <- "C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass/unzip"
+for (i in seq_along(files)) {
+  unzip(zipfile = files[i],
+        exdir = dir)
+}
+```
+
+
+```{r function ass11}
+setwd("./unzip/")
+
+#creating a function called “get_hrs_data()”:
+get_hrs_data <- function(x) {
+  content <- read_lines(str_c(x, ".DCT"))  #calling the relevant dct file
+  content <- content[-1]                   #eliminating the rows as done before as well
+  content <- content[-length(content)]
+  #getting the meta data information
+  meta_data <- read.table(textConnection(content),
+                          header = F,
+                          stringsAsFactors = F)
+  colnames(meta_data) <- c("col", "type", "name", "size", "label")
+  size <- as.numeric(str_extract(meta_data$size, "[0-9]+"))
+  #calling the corresponding data file
+  data <- read_fwf(str_c(x, ".DA"),
+                   fwf_widths(size, meta_data$name))
+  for (i in 1:ncol(data)) {
+    attr(data[[i]], "lab") <- meta_data$label[i]
+  }
+  data
+}
+
+#setwd("./unzip/")
+#test1 <- get_hrs_data("H00A_R")
+```
+
+#Assignment2:
+
+```{r getting the data}
+setwd("./unzip/")
+#getting the first data set, including the "only 96" variables
+dmgr96 <- get_hrs_data("H96A_R")
+head(dmgr96)
+#summary(dmgr96)
+
+#hhid, pn, esubhh are included!
+vrbls <- c("HHID", "PN", "ESUBHH" , "E638", "E639", "E649", "E667M", "E732", "E738")
+
+#for better overview i should rename my selected variables (Exxx?)
+dmgr96_sel <- dmgr96[vrbls]
+head(dmgr96_sel)
+
+#Renaming the last 6 variables
+colnames(dmgr96_sel)[4:9] <- c("yearborn", "bornUSA", "education", "raceM", "religionPREF", "IstENGL")
+head(dmgr96_sel)
+summary(dmgr96_sel)
+
+#seems the first data set is loaded, not yet cleaned but renamed for better understanding
+#how to take care of NAs? I have to find out later, after joining, but i defenitely have to take care of!
+```
+
+```{r loading the other data sets}
+#i will try to load all data sets within one step
+setwd("./unzip/")
+relevant_files <- c("H96B_R", "H98B_R", "H00B_R", "H98C_R", "H00C_R", "H96F_H", "H98F_H", "H00F_H")
+#Loading sets for my topics: health1, health2 (for 98 and 00) and property&value
+ALLdata <- map(str_c(relevant_files), get_hrs_data)
+
+head(ALLdata[[1]]) #H96B_R
+head(ALLdata[[2]]) #H98B_R
+head(ALLdata[[3]]) #H00B_R
+
+head(ALLdata[[4]]) #H98C_R
+head(ALLdata[[5]]) #H00C_R
+
+head(ALLdata[[6]]) #H96F_H
+head(ALLdata[[7]]) #H98F_H
+head(ALLdata[[8]]) #H00F_H
+
+#i checked, all data sets are stored within the list, but i have to create a selection for each, taking the relevant varaibles into account
+
+vrbls <- list(NULL)
+vrbls[[1]] <- c("HHID", "PN", "ESUBHH", "E769", "E772", "E781", "E801", "E988", "E985")
+ALLdata[[1]] <- ALLdata[[1]][vrbls[[1]]]
+colnames(ALLdata[[1]])[4:9] <- c("health_96", "PASThealth_96", "HIGHblood_96", "cancer_96", "happy_96", "depr_96")
+head(ALLdata[[1]])
+
+vrbls <- list(NULL)
+vrbls[[2]] <- c("HHID", "PN", "FSUBHH", "F1097", "F1104", "F1109", "F1129")
+ALLdata[[2]] <- ALLdata[[2]][vrbls[[2]]]
+colnames(ALLdata[[2]])[4:7] <- c("health_98", "PASThealth_98", "HIGHblood_98", "cancer_98")
+head(ALLdata[[2]])
+
+vrbls <- list(NULL)
+vrbls[[3]] <- c("HHID", "PN", "GSUBHH", "G1226", "G1229", "G1238", "G1262")
+ALLdata[[3]] <- ALLdata[[3]][vrbls[[3]]]
+colnames(ALLdata[[3]])[4:7] <- c("health_00", "PASThealth_00", "HIGHblood_00", "cancer_00")
+head(ALLdata[[3]])
+
+vrbls <- list(NULL)
+vrbls[[4]] <- c("HHID", "PN", "FSUBHH", "F1496", "F1493")
+ALLdata[[4]] <- ALLdata[[4]][vrbls[[4]]]
+colnames(ALLdata[[4]])[4:5] <- c("happy_98", "depr_98")
+head(ALLdata[[4]])
+
+vrbls <- list(NULL)
+vrbls[[5]] <- c("HHID", "PN", "GSUBHH", "G1672", "G1669")
+ALLdata[[5]] <- ALLdata[[5]][vrbls[[5]]]
+colnames(ALLdata[[5]])[4:5] <- c("happy_00", "depr_00")
+head(ALLdata[[5]])
+
+vrbls <- list(NULL)
+vrbls[[6]] <- c("HHID", "ESUBHH", "E2226", "E2246") #error: no PN here!
+ALLdata[[6]] <- ALLdata[[6]][vrbls[[6]]]
+colnames(ALLdata[[6]])[3:4] <- c("property_96", "propVALUE_96")
+head(ALLdata[[6]])
+
+vrbls <- list(NULL)
+vrbls[[7]] <- c("HHID", "FSUBHH", "F2743", "F2760")
+ALLdata[[7]] <- ALLdata[[7]][vrbls[[7]]]
+colnames(ALLdata[[7]])[3:4] <- c("property_98", "propVALUE_98")
+head(ALLdata[[7]])
+
+vrbls <- list(NULL)
+vrbls[[8]] <- c("HHID", "GSUBHH", "G3061", "G3078")
+ALLdata[[8]] <- ALLdata[[8]][vrbls[[8]]]
+colnames(ALLdata[[8]])[3:4] <- c("property_00", "propVALUE_00")
+head(ALLdata[[8]])
+```
+
+```{r join}
+setwd("./unzip/")
+
+#Alex recommended to join yearwise first and later on the yearwise data sets into one, based on the "only 96 data"
+#hrs96
+hrs96 <- ALLdata[[1]] %>% 
+inner_join(ALLdata[[6]], by = c("HHID", "ESUBHH"))%>% 
+select(-ESUBHH)
+head(hrs96)
+
+#hrs98
+hrs98 <- ALLdata[[2]] %>%
+select(-FSUBHH) %>%
+inner_join(ALLdata[[4]], by = c("HHID", "PN")) %>% inner_join(ALLdata[[7]], by = c("HHID", "FSUBHH"))%>% 
+select(-FSUBHH)
+head(hrs98)
+#it took a while to find out, why i had FSUBHH.x and FSUBHH.y -  need to think of that for the other joins!!!
+
+#hrs00
+hrs00 <- ALLdata[[3]] %>%
+select(-GSUBHH) %>%
+inner_join(ALLdata[[5]], by = c("HHID", "PN")) %>% inner_join(ALLdata[[8]], by = c("HHID", "GSUBHH"))%>% 
+select(-GSUBHH)
+head(hrs00)
+
+HRSjoined <- dmgr96_sel %>% #need to get rid of ESUBHH variable from demographic data set
+select(-ESUBHH) %>%
+inner_join(hrs96, by = c("HHID", "PN")) %>% inner_join(hrs98, by = c("HHID", "PN")) %>% inner_join(hrs00, by = c("HHID", "PN"))
+head(HRSjoined)
+
+#i used inner joins to assure that i have only units in my joined datasrt, that are in all three years, as the task asked for
+
+HRSlong <- reshape(HRSjoined, idvar = 1:2, varying = 9:ncol(HRSjoined), sep = "_", timevar = "WAVE", direction = "long")
+head(HRSlong)
+#analogue to script/lecture, separation hint is important to get rid of the years in varaible names?!
+
+uncleaned_HRSlong <- as.data.frame(HRSlong)
+HRSwide <- reshape(data = uncleaned_HRSlong, idvar = c("HHID", "PN"), v.names = colnames(HRSlong)[9:length(HRSlong)],
+timevar = "WAVE", sep = "_", direction = "wide")
+
+rm(uncleaned_HRSlong)
+HRSwide <- tbl_df(HRSwide)
+save(HRSwide, HRSlong, file = "./E.Linek_ass2_uncleaned.RData")
+#i can see the data file in my directory, so that part is saved
+
+summary(HRSlong)
+summary(HRSwide)
+```
+
+
+```{r cleaning the data}
+setwd("./unzip/")
+#now the cleaning part and the factorization of varaibles, as recommended i will do that within the long formated 
+
+#function from Alex, in order to get reused during the cleaning actions 
+#i changed the name in order to know what the function is about
+hrs_yesORno <- function(x) {
+  y <- case_when(x == 1 ~ "Yes",
+                 x == 5 ~ "No")
+  y <- as.factor(y)
+  if (!is.null(attributes(x)$lab)) {
+    attr(y, "lab") <- attr(x, "lab")
+  }
+  y
+}
+
+
+#start to clean the 1996 demografic data (first varaibles in my merged data set)
+#whith the support of the pipe operator i call all the variables from the demographic data set at once
+#after a first run and meeting tonight, i include the factors here too:
+#again changing: after searching the web I include NA settings here
+
+HRSlong <- HRSlong %>%
+  mutate(yearborn = ifelse(yearborn > 9997, NA, yearborn),
+         bornUSA = hrs_yesORno(bornUSA),
+         education = ifelse(education > 20, NA, education),
+         educationF = factor(education, labels = c("No formal education",
+          "First grade",
+          "Second grade",
+          "Third grade",
+          "Fourth grade",
+          "Fifth grade",
+          "Sixth grade",
+          "Seventh grade",
+          "Eighth grade",
+          "Ninth grade",
+          "Tenth grade",
+          "Eleventh grade",
+          "High school graduate",
+          "Some college 1",
+          "Some college 2",
+          "Some college 3",
+          "College graduate",
+          "Post college")),
+         raceM = ifelse(raceM > 7, NA, raceM),
+         raceF = factor(raceM, labels = c("White/Caucasian", "Black/African American", "Other")),
+         religionPREF = ifelse(religionPREF > 7, NA, religionPREF),
+         religionF = factor(religionPREF, labels = c("Protestant", "Catholic", "Jewish", "No preference", "Other")),
+         IstENGL = hrs_yesORno(IstENGL),
+         health = ifelse(health > 5, NA, health),
+         healthF = factor(health, labels = c("Excellent", "Very good", "Good", "Fair", "Poor")),
+         PASThealth = ifelse(PASThealth > 3, NA, PASThealth),
+         PASThealthF = factor(PASThealth, labels = c("Better", "About same", "Worse")),
+         HIGHblood = hrs_yesORno(HIGHblood),
+         cancer = hrs_yesORno(cancer),
+         happy = hrs_yesORno(happy),
+         depr = hrs_yesORno(depr),
+         property = ifelse(property > 7, NA, property),
+         propertyF = factor(property, labels = c("Own", "Rent", "Partial own", "Neither")),
+         propVALUE = as.numeric(propVALUE),
+         propVALUE = ifelse(propVALUE > 99999996, NA, propVALUE))
+
+#Check for NAs
+#check for lables
+#check for created factors
+
+Cleaned_HRSlong <- as.data.frame(HRSlong)
+HRSwide <- reshape(data = Cleaned_HRSlong, idvar = c("HHID", "PN"), v.names = colnames(HRSlong)[9:length(HRSlong)],
+timevar = "WAVE", sep = "_", direction = "wide")
+
+rm(Cleaned_HRSlong)
+HRSwide <- tbl_df(HRSwide)
+save(HRSwide, HRSlong, file = "./E.Linek_ass2_cleaned.RData")
+#i can see the data file in my directory, so that part is saved
+
+head(HRSlong)
+summary(HRSlong)
+head(HRSwide)
+summary(HRSwide)
+
+#load("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass/E.Linek_ass2_cleaned.RData")
+```
+
+```{r loop and\or function}
+setwd("./unzip/")
+
+#list of data sets, that are relevant (as i had used before)
+relevant_files <- c("H96B_R", "H98B_R", "H00B_R", "H98C_R", "H00C_R", "H96F_H", "H98F_H", "H00F_H")
+ALLdata <- map(str_c(relevant_files), get_hrs_data)
+
+#all together taken the list of varaibles (i had that before too)
+vrbls <- list(NULL)
+vrbls[[1]] <- c("HHID", "PN", "ESUBHH", "E769", "E772", "E781", "E801", "E988", "E985") #E F G
+vrbls[[2]] <- c("HHID", "PN", "FSUBHH", "F1097", "F1104", "F1109", "F1129")             #F G
+vrbls[[3]] <- c("HHID", "PN", "GSUBHH", "G1226", "G1229", "G1238", "G1262")             #F G
+vrbls[[4]] <- c("HHID", "PN", "FSUBHH", "F1496", "F1493")                               #F
+vrbls[[5]] <- c("HHID", "PN", "GSUBHH", "G1672", "G1669")                               #G
+vrbls[[6]] <- c("HHID", "ESUBHH", "E2226", "E2246")                                     #E
+vrbls[[7]] <- c("HHID", "FSUBHH", "F2743", "F2760")                                     #F
+vrbls[[8]] <- c("HHID", "GSUBHH", "G3061", "G3078")                                     #G 
+
+columnCALLED <- list(NULL)
+columnCALLED[[1]] <- c("HHID", "PN", "ESUBHH", "health_96", "PASThealth_96", "HIGHblood_96", "cancer_96", "happy_96", "depr_96")
+columnCALLED[[2]] <- c("HHID", "PN", "FSUBHH", "health_98", "PASThealth_98", "HIGHblood_98", "cancer_98")
+columnCALLED[[3]] <- c("HHID", "PN", "GSUBHH", "health_00", "PASThealth_00", "HIGHblood_00", "cancer_00")
+columnCALLED[[4]] <- c("HHID", "PN", "FSUBHH", "happy_98", "depr_98")
+columnCALLED[[5]] <- c("HHID", "PN", "GSUBHH", "happy_00", "depr_00")
+columnCALLED[[6]] <- c("HHID", "ESUBHH", "property_96", "propVALUE_96")
+columnCALLED[[7]] <- c("HHID", "FSUBHH", "property_98", "propVALUE_98")
+columnCALLED[[8]] <- c("HHID", "GSUBHH", "property_00", "propVALUE_00")
+
+#now to the loop?
+#my problem is, that i dont know how to take care of the individual structures of my tasks (longer/shorter lists within different datasets, so i created a loop that is not that flexible, as it could probably be, but it loops through the renaming.
+
+data.set <- list(NULL)
+for (i in seq_along(ALLdata)) {
+        data.set[[i]] <- ALLdata[[i]] %>%
+        select(vrbls[[i]]) %>%
+        setNames(columnCALLED[[i]])
+}
+
+#checking the results:
+head(data.set[[1]])
+head(data.set[[8]])
+
+
+# #function (trial)
+# rename_hrs_data <- function(data, selectionVRBLS, namesVRBLS) {
+#             set <- ALLdata %>%
+#                    select(vrbls) %>%
+#                    setNames(columnCALLED)
+#             set
+# }
+# 
+# #follwing the recommendation at Github:
+# #rename_hrs_data(ALLdata[[1]], selectionVRBLS = vrbls[[1]], namesVRBLS = columnCALLED[[1]])
+# 
+# #to dos as list, in order to call these later on:
+# tasks <- list(data = ALLdata, selectionVRBLS = vrbls, namesVRBLS = columnCALLED)
+# 
+# #trying the pmap command to call the function and apply to all datasets within the list
+# data.set2 <- pmap(tasks, rename_hrs_data)
+
+#-> the so created data still needs to be cleaned, as done before/above in the original code...
+```
+

@@ -1,0 +1,330 @@
+---
+title: "Assignment3 - Real World Data Management Course SURV665"
+author: "Elli Linek"
+date: "09 07 2019"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = T, results = "hide",
+                      warning = F, error = F, message = F)
+```
+
+```{r unzip}
+library(tidyverse)
+library(pander)
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(haven)
+#library(CGPfunctions)
+library(Hmisc)
+
+setwd("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass")
+list.files()
+files <- list.files(pattern="*.zip")
+dir.create('unzip')
+seq_along(files)
+dir <- "C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass/unzip"
+for (i in seq_along(files)) {
+  unzip(zipfile = files[i],
+        exdir = dir)
+}
+```
+
+
+```{r function ass11}
+setwd("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass/unzip/")
+get_hrs_data <- function(x) {
+  content <- read_lines(str_c(x, ".DCT"))  #calling the relevant dct file
+  content <- content[-1]                   #eliminating the rows as done before as well
+  content <- content[-length(content)]
+  meta_data <- read.table(textConnection(content),
+                          header = F,
+                          stringsAsFactors = F)
+  colnames(meta_data) <- c("col", "type", "name", "size", "label")
+  size <- as.numeric(str_extract(meta_data$size, "[0-9]+"))
+  data <- read_fwf(str_c(x, ".DA"),
+                   fwf_widths(size, meta_data$name))
+  for (i in 1:ncol(data)) {
+    attr(data[[i]], "lab") <- meta_data$label[i]
+  }
+  data
+}
+```
+
+#Assignment2:
+```{r getting the data}
+setwd("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass/unzip/")
+dmgr96 <- get_hrs_data("H96A_R")
+vrbls  <- c("HHID", "PN", "ESUBHH" , "E638", "E639", "E649", "E667M", "E732", "E738")
+dmgr96_sel <- dmgr96[vrbls]
+colnames(dmgr96_sel)[4:9] <- c("yearborn", "bornUSA", "education", "raceM", "religionPREF", "IstENGL")
+
+relevant_files <- c("H96B_R", "H98B_R", "H00B_R", "H98C_R", "H00C_R", "H96F_H", "H98F_H", "H00F_H")
+ALLdata <- map(str_c(relevant_files), get_hrs_data)
+
+vrbls <- list(NULL)
+vrbls[[1]] <- c("HHID", "PN", "ESUBHH", "E769", "E772", "E781", "E801", "E988", "E985")
+ALLdata[[1]] <- ALLdata[[1]][vrbls[[1]]]
+colnames(ALLdata[[1]])[4:9] <- c("health_96", "PASThealth_96", "HIGHblood_96", "cancer_96", "happy_96", "depr_96")
+
+vrbls <- list(NULL)
+vrbls[[2]] <- c("HHID", "PN", "FSUBHH", "F1097", "F1104", "F1109", "F1129")
+ALLdata[[2]] <- ALLdata[[2]][vrbls[[2]]]
+colnames(ALLdata[[2]])[4:7] <- c("health_98", "PASThealth_98", "HIGHblood_98", "cancer_98")
+
+vrbls <- list(NULL)
+vrbls[[3]] <- c("HHID", "PN", "GSUBHH", "G1226", "G1229", "G1238", "G1262")
+ALLdata[[3]] <- ALLdata[[3]][vrbls[[3]]]
+colnames(ALLdata[[3]])[4:7] <- c("health_00", "PASThealth_00", "HIGHblood_00", "cancer_00")
+
+vrbls <- list(NULL)
+vrbls[[4]] <- c("HHID", "PN", "FSUBHH", "F1496", "F1493")
+ALLdata[[4]] <- ALLdata[[4]][vrbls[[4]]]
+colnames(ALLdata[[4]])[4:5] <- c("happy_98", "depr_98")
+
+vrbls <- list(NULL)
+vrbls[[5]] <- c("HHID", "PN", "GSUBHH", "G1672", "G1669")
+ALLdata[[5]] <- ALLdata[[5]][vrbls[[5]]]
+colnames(ALLdata[[5]])[4:5] <- c("happy_00", "depr_00")
+
+vrbls <- list(NULL)
+vrbls[[6]] <- c("HHID", "ESUBHH", "E2226", "E2246") #error: no PN here!
+ALLdata[[6]] <- ALLdata[[6]][vrbls[[6]]]
+colnames(ALLdata[[6]])[3:4] <- c("property_96", "propVALUE_96")
+
+vrbls <- list(NULL)
+vrbls[[7]] <- c("HHID", "FSUBHH", "F2743", "F2760")
+ALLdata[[7]] <- ALLdata[[7]][vrbls[[7]]]
+colnames(ALLdata[[7]])[3:4] <- c("property_98", "propVALUE_98")
+
+vrbls <- list(NULL)
+vrbls[[8]] <- c("HHID", "GSUBHH", "G3061", "G3078")
+ALLdata[[8]] <- ALLdata[[8]][vrbls[[8]]]
+colnames(ALLdata[[8]])[3:4] <- c("property_00", "propVALUE_00")
+
+####
+#hrs96
+hrs96 <- ALLdata[[1]] %>% 
+inner_join(ALLdata[[6]], by = c("HHID", "ESUBHH"))%>% 
+select(-ESUBHH)
+
+#hrs98
+hrs98 <- ALLdata[[2]] %>%
+select(-FSUBHH) %>%
+inner_join(ALLdata[[4]], by = c("HHID", "PN")) %>% inner_join(ALLdata[[7]], by = c("HHID", "FSUBHH"))%>% 
+select(-FSUBHH)
+
+#hrs00
+hrs00 <- ALLdata[[3]] %>%
+select(-GSUBHH) %>%
+inner_join(ALLdata[[5]], by = c("HHID", "PN")) %>% inner_join(ALLdata[[8]], by = c("HHID", "GSUBHH"))%>% 
+select(-GSUBHH)
+
+HRSjoined <- dmgr96_sel %>% #need to get rid of ESUBHH variable from demographic data set
+select(-ESUBHH) %>%
+inner_join(hrs96, by = c("HHID", "PN")) %>% inner_join(hrs98, by = c("HHID", "PN")) %>% inner_join(hrs00, by = c("HHID", "PN"))
+#head(HRSjoined)
+
+HRSlong <- reshape(HRSjoined, idvar = 1:2, varying = 9:ncol(HRSjoined), sep = "_", timevar = "WAVE", direction = "long")
+#head(HRSlong)
+```
+
+
+```{r cleaning the data}
+setwd("./unzip/")
+hrs_yesORno <- function(x) {
+  y <- case_when(x == 1 ~ "Yes",
+                 x == 5 ~ "No")
+  y <- as.factor(y)
+  if (!is.null(attributes(x)$lab)) {
+    attr(y, "lab") <- attr(x, "lab")
+  }
+  y
+}
+
+HRSlong <- HRSlong %>%
+  mutate(yearborn = ifelse(yearborn > 9997, NA, yearborn),
+         bornUSA = hrs_yesORno(bornUSA),
+         education = ifelse(education > 20, NA, education),
+         educationF = factor(education, labels = c("No formal education",
+          "First grade",
+          "Second grade",
+          "Third grade",
+          "Fourth grade",
+          "Fifth grade",
+          "Sixth grade",
+          "Seventh grade",
+          "Eighth grade",
+          "Ninth grade",
+          "Tenth grade",
+          "Eleventh grade",
+          "High school graduate",
+          "Some college 1",
+          "Some college 2",
+          "Some college 3",
+          "College graduate",
+          "Post college")),
+         raceM = ifelse(raceM > 7, NA, raceM),
+         raceF = factor(raceM, labels = c("White/Caucasian", "Black/African American", "Other")),
+         religionPREF = ifelse(religionPREF > 7, NA, religionPREF),
+         religionF = factor(religionPREF, labels = c("Protestant", "Catholic", "Jewish", "No preference", "Other")),
+         IstENGL = hrs_yesORno(IstENGL),
+         health = ifelse(health > 5, NA, health),
+         healthF = factor(health, labels = c("Excellent", "Very good", "Good", "Fair", "Poor")),
+         PASThealth = ifelse(PASThealth > 3, NA, PASThealth),
+         PASThealthF = factor(PASThealth, labels = c("Better", "About same", "Worse")),
+         HIGHblood = hrs_yesORno(HIGHblood),
+         cancer = hrs_yesORno(cancer),
+         happy = hrs_yesORno(happy),
+         depr = hrs_yesORno(depr),
+         property = ifelse(property > 7, NA, property),
+         propertyF = factor(property, labels = c("Own", "Rent", "Partial own", "Neither")),
+         propVALUE = as.numeric(propVALUE),
+         propVALUE = ifelse(propVALUE > 99999996, NA, propVALUE))
+
+Cleaned_HRSlong <- as.data.frame(HRSlong)
+HRSwide <- reshape(data = Cleaned_HRSlong, idvar = c("HHID", "PN"), v.names = colnames(HRSlong)[9:length(HRSlong)],
+timevar = "WAVE", sep = "_", direction = "wide")
+
+rm(Cleaned_HRSlong)
+HRSwide <- tbl_df(HRSwide)
+save(HRSwide, HRSlong, file = "./E.Linek_ass2_cleaned.RData")
+
+#load("C:/Users/elli/IPSDS/SURV665_Introduction to Real World Data Management Section 1_summer 2019/assignments/ass/E.Linek_ass2_cleaned.RData")
+```
+
+#Assignment 3 - the report and analysis
+```{r ass3}
+#loading Alex data from assignment 2 - so that i might not be dependent to wrong data...
+load("./ass_2.RData")
+head(data_long)
+head(data_wide)
+
+#selection, in order to get better tables
+explore_data <- data_wide %>% 
+  select(-hhid, -pn)
+type_var <- unlist(map(explore_data, class))
+
+#function1
+freq_tab <- function(x) {
+
+    tab <- cbind(Count = table(x, useNA = "always"),
+                 Proportion = round(prop.table(table(x, useNA = "always")),
+                            2))
+  
+    tab <- as.data.frame(tab) %>%
+    tbl_df() %>%
+    mutate(Category = row.names(tab)) %>%
+    select(Category, Count, Proportion)
+}
+
+props <- map(explore_data[, type_var == "factor"],
+             freq_tab)
+  
+vars <- unlist(map(props, nrow))
+
+props_tab <- reduce(props, rbind)
+
+props_tab <- props_tab %>%
+  mutate(Variable = rep(names(vars), vars)) %>%
+  separate(Variable, into = c("Variable", "Year"),            
+           sep = "\\.")
+
+props_tab_change <- props_tab %>% 
+  filter(!is.na(Year)) %>% 
+  arrange(Variable, Year, Category) %>% 
+  mutate(Year = as.numeric(Year))
+
+test <- data.frame(props_tab_change) 
+
+props_tab_change <- reshape(
+  data = test,
+  idvar = c("Category", "Variable"),
+  v.names = c("Count", "Proportion"),
+  timevar = "Year",
+  sep = "_",
+  direction = "wide"
+  ) %>% 
+  tbl_df() %>% 
+  select(Variable, Category, everything())
+
+# bring everything together
+props_tab_nochange <- props_tab %>% 
+  filter(is.na(Year)) %>% 
+  select(Variable, Category, everything(), -Year) 
+
+row.names(props_tab_nochange) <- NULL
+row.names(props_tab_change) <- NULL
+
+pander(props_tab_nochange, 
+       caption = "Counts & Proportions for all constant variables based on HRS dataset 1996")
+
+write.csv2(props_tab_nochange,"props_tab_nochange.csv")
+
+# select fewer vars to make table slimmer
+props_tab_change2 <- props_tab_change %>%
+  select(-Count_1998, -Count_2000)
+
+write.csv2(props_tab_change2,"props_tab_change2.csv")
+
+pander(props_tab_change2,
+       caption = "Counts & Proportions for varying variables, based on HRS data from '96, '98 and '00")
+
+
+
+ggplot(data_long, aes(x=age, color=time, fill=time)) +
+geom_histogram(aes(y=..count..))+
+geom_density(alpha=0.01)+
+coord_cartesian(xlim =c(25, 100), ylim=c(0, 2000)) +
+scale_color_manual(values=c("skyblue3", "skyblue2", "skyblue1"))+
+scale_fill_manual(values=c("skyblue3", "skyblue2", "skyblue1"))+
+labs(title="Age - Histogram",x="Age", y = "Count")+
+  facet_grid(time ~ .)
+
+# ggplot(data_long, aes(x=age)) + geom_histogram(binwidth=2, colour="skyblue3", fill="skyblue3") + 
+#     facet_grid(time ~ .)
+
+ggplot(data_long, aes(x=age)) + geom_histogram(binwidth=2, colour="skyblue3", fill="skyblue3") + 
+       coord_cartesian(xlim =c(25, 100), ylim=c(0, 2000)) +
+       labs(x = "Age", y = "Count",
+       title = "Histogram of Respondents Age, 1996, 1998 and 2000",
+       caption = "based on HRS datasets from years '96, '98, '00") +
+  facet_grid(time ~ .)
+
+
+ggplot(data_long, aes(x=age, color=time)) +
+geom_freqpoly(bins = 30)+
+coord_cartesian(xlim =c(20, 100), ylim=c(0, 2000)) +
+scale_color_manual(values=c("skyblue3", "skyblue2", "skyblue1"))+
+scale_fill_manual(values=c("skyblue3", "skyblue2", "skyblue1"))+
+labs(x = "Age", y = "Count",
+       title = "Histogram of Respondents Age",
+       caption = "based on HRS datasets from years '96, '98, '00") +
+  facet_grid(time ~ .)
+
+ggplot(data_long, aes(x=age)) +
+geom_freqpoly(bins = 30)+
+coord_cartesian(xlim =c(20, 100), ylim=c(0, 2000)) +
+scale_color_manual(values=c("skyblue3", "skyblue2", "skyblue1"))+
+scale_fill_manual(values=c("skyblue3", "skyblue2", "skyblue1"))+
+labs(x = "Age", y = "Count",
+       title = "Histogram of Respondents Age",
+       caption = "based on HRS datasets from years '96, '98, '00")+
+  facet_grid(time ~ .)
+
+
+```
+
+
+
+
+
+
+
+
+
