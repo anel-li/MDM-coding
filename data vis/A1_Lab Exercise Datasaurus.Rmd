@@ -1,0 +1,176 @@
+---
+title: 'data vis: assignment1'
+author: "Elli Linek"
+date: "4 April 2018"
+output: html_document
+---
+
+# Lab Exercise: Datasaurus
+
+Tasks:
+
+1. Choose 4 datasets to work with.
+2. Explore those 4 datasets using only descriptive statistics (DO NOT PLOT THEM YET!)
+   Summarize your findings.
+3. Correlate the x and y variables and run simple regressions for each dataset.
+   Summarize your findings.
+4. Now plot the variables for each dataset.
+   Summarize your findings.
+5. If you have not chosen it yet, look at dataset 4.
+   Summarize your findings.
+
+
+# Part 1: Statistical exploration - descriptive
+
+```{r descriptive}
+
+library(foreign)
+library(dplyr)
+
+get_dataset <- function(all_data, n) {
+  r <- all_data %>%
+    filter(dataset == n) %>%
+    select(x,y)
+  return(r)
+}
+
+data <- read.csv("datasaurus.csv", sep=";")
+
+datasets <- c(1,4,7,11)
+#datasets <- c(1:13) 
+
+# when i realized I get no clue out of the 4 selected datasets I wanted to see all datasets in order to get a better overview, i set the selection back to four later on, to write the summary
+
+for(i in datasets) {
+  ds <- get_dataset(data, i)
+  
+  print(paste("dataset", i))
+  
+  print("head(6)")
+  print(ds %>% head(6))
+  
+  #print("tail(6)")
+  #print(ds %>% tail(6))
+  
+  print(paste("rows:", nrow(ds)))
+  
+  print("colSums")
+  print(colSums(ds))
+  
+  print("colMeans")
+  print(colMeans(ds))
+  
+  print("median")
+  print(median(ds$x))
+  print(median(ds$y))
+  
+  print("sd")
+  print(sd(ds$x))
+  print(sd(ds$y))
+  
+  print("var")
+  print(var(ds$x))
+  print(var(ds$y))
+  
+  print("cov")
+  print(cov(ds))
+  
+  print("cor")
+  print(cor(ds))
+  
+  print("data summary")
+  print(summary(ds))
+  
+  # empty line
+  cat("\n\n")
+}
+
+```
+
+## summary of findings
+
+- the selected data sets are of eqal length (142 rows each)
+- the data entries of the variables seem to be of same type (almost same range, same amount of decimal places)
+- the mean values between x and y variables do not give advice what kind of data i am looking at
+- is it a set of random nambers, going from minimum  0 to 100 maximum
+- mean and median are all appr. around 50
+- standard deviation or variance do not enlighten the fogg, I am sorry
+
+-> from my point of view it does not make sense to get further on with describing the results of descriptive statistic, since all of the reults dont breakup the data-nut
+
+question on mind: what kind of data am I looking at? What does x and y variable are intenting to represent?
+
+
+-------------------------------------------
+
+# Part 2: Statistical exploration - modelling
+
+```{r modelling}
+
+datasets <- c(1,4,7,11)
+#datasets <- c(1:13) 
+
+for(i in datasets) {
+  ds <- get_dataset(data, i)
+
+
+ # linear model
+  print("model y = x")
+  model <- lm(y ~ x, data = ds)
+  print("lm anova")
+  print(anova(model))
+  print("lm summary")
+  print(summary(model))
+  
+  # square model
+  print("model y = x^2")
+  model <- lm(y ~ x ^ 2, data = ds)
+  print("lm anova")
+  print(anova(model))
+  print("lm summary")
+  print(summary(model))
+  
+  # empty line
+  cat("\n\n")
+}
+
+```
+
+## summary of findings
+
+- there is no correlation between the variables that makes the data background clear
+- the regression model is not giving a hint about the relation of both variables nor the kind of data we are looking at
+
+
+-------------------------------------------
+
+# Part 3: Including Plots
+
+```{r pressure, echo=FALSE}
+
+# 4. Now plot the variables for each dataset.
+
+datasets <- c(1:13)
+for(i in datasets) {
+  ds <- get_dataset(data, i)
+  #dev.new()
+  plot(ds, main = paste("dataset", i))
+}
+
+```
+
+## summary of findings
+
+- finally: the plots showing the data in their areal location is lighting the data set up!
+- a star, lines, eclipses and of coause the dinosaur 
+
+-> x and y variables are not data in a social way of interpretation (like age or sex or any kind of income for example) it is about the position of each data point within the plot that is showing how each data entry in the end builts a hole picture, a structure, a pattern!
+
+That was a great experiment! 
+
+
+
+
+
+
+-------------------------------------------
