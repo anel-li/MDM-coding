@@ -1,0 +1,281 @@
+---
+title: 'Data confidentiality - Homework Assignment 2'
+author: "Elisabeth Linek"
+output:
+  word_document: default
+  html_document: default
+---
+#1 summaries as overview
+
+```{r}
+library('dplyr')
+
+load("synthetic_cps.RData")
+
+summary(cps)
+summary(syn.data[[1]])
+summary(syn.data[[2]])
+summary(syn.data[[3]])
+summary(syn.data[[4]])
+summary(syn.data[[5]])
+
+#1 checking for missings within data sets, just to check if i have to account for those
+
+table(is.na(cps))
+table(is.na(syn.data[[1]]))
+table(is.na(syn.data[[2]]))
+table(is.na(syn.data[[3]]))
+table(is.na(syn.data[[4]]))
+table(is.na(syn.data[[5]]))
+
+
+```
+
+#2 analysis, calculation of requested estimates for taxes
+
+```{r}
+##get point and variance estimate from each synthetic dataset as well as from cps (original data set)
+
+m<-length(syn.data)
+n<-nrow(cps)
+
+q.i<-rep(NA,m)
+u.i<-rep(NA,m)
+
+for(i in 1:m){
+	q.i[i]<-mean(syn.data[[i]]$tax)
+	u.i[i]<-var(syn.data[[i]]$tax)/n
+	} 
+
+##more efficient way from lectures (trying out)
+#q.i<-sapply(syn.data,function(x) mean(x$tax))
+#u.i<-sapply(syn.data,function(x) var(x$tax)/nrow(x))
+
+# necessary quantities to compute final variance
+u.bar<-mean(u.i)
+b.m<-var(q.i)
+
+
+print(q.i)
+print(u.i)
+print(u.bar)
+print(b.m)
+
+
+#final estimates
+q.bar<-mean(q.i)
+T.p<-u.bar+b.m/m
+
+print(q.bar)
+print(T.p)
+
+#cps data in comparison
+mean(cps$tax)
+var(cps$tax)/n
+
+
+```
+
+
+#3 analysis, calculation of requested estimates for race
+
+```{r}
+##get point and variance estimate from each synthetic dataset as well as from cps (original data set)
+
+m<-length(syn.data)
+n<-nrow(cps)
+
+#Original data set cps
+
+#Estimation of the proportion of blacks (race==2)
+summary(cps$race)
+cps$race.black <- ifelse(cps$race==2,1,0)
+table(cps$race.black)
+
+#Calculation of the proportion
+race.m <- mean(cps$race.black) 
+print(race.m)
+
+#Variance of the point estimate
+(race.m*(1-race.m))/n
+
+
+#Synthetic data, analysising each dataset separately first (step a)
+for (i in 1:5)
+{syn.data[[i]]$black <- ifelse(syn.data[[i]]$race==2,1,0)}
+
+#Proportions in the datasets
+black.m <- rep(NA,5) 
+for (i in 1:5)
+{black.m[i]<- mean(syn.data[[i]]$black)}
+print(black.m)
+
+#Variance estimates
+black.v <- rep(NA,5) #for variances
+black.v <- (black.m*(1-black.m))/n
+black.v
+
+#Synthetic data, combining the results (step b)
+#Proportion: final estimate
+mean(black.m)
+
+#Variance
+#(b.m: Variability of point estimates)
+var(black.m)
+
+#(u.m: average variance estimation)
+mean(black.v)
+
+#combining the results
+black.T.p <- mean(black.v) + var(black.m)/5
+black.T.p
+
+```
+
+##compute the degrees of freedom
+dfs<-(m-1)*(1+u.bar/(b.m/m))^2
+
+##compute 95% confidence intervals
+l.95.syn<-q.bar-qt(0.975,df=dfs)*sqrt(T.p)
+u.95.syn<-q.bar+qt(0.975,df=dfs)*sqrt(T.p)
+
+##compare results to original data
+q.org<-mean(cps$income)
+T.org<-var(cps$income)/nrow(cps)
+l.95.org<-q.org-1.96*sqrt(T.org)
+u.95.org<-q.org+1.96*sqrt(T.org)
+
+syn.res<-cbind(l.95.syn,q.bar,u.95.syn)
+org.res<-cbind(l.95.org,q.org,u.95.org)
+
+res<-rbind(org.res,syn.res)
+dimnames(res)<-list(c("org","syn"),c("lower95","mean.inc","upper95"))
+print(res)
+
+
+#4 complex analysis, regression model
+
+```{r}
+
+load("synthetic_cps.RData")
+
+#first regression
+reg1.cps<-lm(log(income)~tax+csp+age+as.numeric(educ)+marital+race+as.factor(sex)+ss,data=cps)
+summary(reg1.cps)
+print(reg1.cps)
+#reg1.results<-cbind(summary(reg1.cps)$coef[,1],summary(reg1.cps)$coef[,2]^2)
+
+#-----
+#function as shown within example in lecture (stores all point and variance estimates)
+func<-function(data){
+ 
+###descriptive statistics
+#inc.mean<-as.numeric(by(data$income,data$sex,mean))
+#inc.var<-as.numeric(by(data$income,data$sex,var)/table(data$sex))
+#inc.results<-cbind(inc.mean,inc.var)
+
+#age.mean<-as.numeric(by(data$age,data$sex,mean))
+#age.var<-as.numeric(by(data$age,data$sex,var)/table(data$sex))
+#age.results<-cbind(age.mean,age.var)
+
+###turn education variable into continuous variable
+data$educ<-as.numeric(levels(data$educ))[data$educ]
+#-----
+
+#regressions (I tried several, until I `found` the fitting one)
+
+#reg2.cps<-lm(log(income)~tax+csp+age+as.numeric(educ)+marital+race+sex+ss,data=cps)
+#summary(reg2.cps)
+#print(reg2.cps)
+#reg2.results<-cbind(summary(reg2.cps)$coef[,1],summary(reg2.cps)$coef[,2]^2)
+
+reg3.cps<-lm(log(income)~tax+csp+age+educ+marital+race+as.factor(sex)+ss,data=data)
+summary(reg3.cps)
+print(reg3.cps)
+reg3.results<-cbind(summary(reg3.cps)$coef[,1],summary(reg3.cps)$coef[,2]^2)
+ 
+dimnames(reg3.results)<-list(c("Intercept","tax","csp","age","educ","married, spouse absent","separated","divorced","Widowed","never married/single","unknown","Black","Am.Indian","Asian","SEX","SS"),c("estimate","variance"))
+return(reg3.results)
+  
+}
+
+#get estimates from synthetic data (a list of length m containing q_i and u_i)
+syn.res<-sapply(syn.data,func,simplify="array")
+print(syn.res)
+
+#compute final estimates
+regq.bar<-apply(syn.res[,1,],1,mean)
+regu.bar<-apply(syn.res[,2,],1,mean)
+regb.m<-apply(syn.res[,1,],1,var)
+
+regT.p<-u.bar+regb.m/5
+
+regq.bar
+regu.bar
+regb.m
+regT.p
+
+
+```
+
+
+
+#5computation of confidence intervals
+```{r}
+
+#computation of the degrees of freedom
+dfs<-(m-1)*(1+regu.bar/(regb.m/m))^2
+dfs
+
+#Confidence interval
+l.95.syn<-regq.bar-qt(0.975,df=dfs)*sqrt(regT.p)
+u.95.syn<-regq.bar+qt(0.975,df=dfs)*sqrt(regT.p)
+ci.length.syn<-u.95.syn-l.95.syn
+print(ci.length.syn)
+print(l.95.syn)
+print(u.95.syn)
+
+#estimates from original data set cps
+cps.res<-func(cps)
+l.95.cps<-cps.res[,1]-1.96*sqrt(cps.res[,2])
+u.95.cps<-cps.res[,1]+1.96*sqrt(cps.res[,2])
+ci.length.cps<-u.95.cps-l.95.cps
+print(ci.length.cps)
+print(l.95.cps)
+print(u.95.cps)
+
+#comparison of the results
+print(cbind(cps.res[,1],q.bar),digits=3)
+print(cbind(ci.length.cps,ci.length.syn),digits=3)
+
+#P-value for synthetic data
+Tvalue <- (regq.bar-0) /regT.p^0.5
+print(Tvalue)
+
+pt(Tvalue,df=dfs)
+
+Tvalue <- (regq.bar[15]-0) /regT.p[15]^0.5
+Tvalue
+
+pt(Tvalue,df=dfs[15])
+pt
+
+
+```
+
+#6 plotting
+```{r}
+boxplot(income~sex,data=cps, main="", 
+  	xlab="sex", ylab="income")
+
+```
+
+#special check from example: why are synthetic confidence intervals shorter for income?
+qqplot(cps$income,syn.data[[1]]$income,
+     ylim=c(min(cps$income,syn.data[[1]]$income),
+      max(cps$income,syn.data[[1]]$income)))
+
+qqplot(cps$income,syn.data[[1]]$income,
+     ylim=c(min(cps$income,syn.data[[1]]$income),200000),
+     xlim=c(min(cps$income,syn.data[[1]]$income),200000))
+length(cps$income[cps$income>150000])

@@ -1,0 +1,65 @@
+---
+title: 'Data confidentiality - Homework Assignment 1'
+author: "Elisabeth Linek"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+library('dplyr')
+
+load("lalonde.RData")
+
+summary(lalonde)
+summary(ll.noise1)
+summary(ll.noise2)
+
+var(lalonde$re74)
+var(lalonde$re75)
+cor(lalonde$re74, lalonde$re75)
+
+var(ll.noise1$re74)
+var(ll.noise1$re75)
+cor(ll.noise1$re74, ll.noise1$re75)
+
+var(ll.noise2$re74)
+var(ll.noise2$re75)
+cor(ll.noise2$re74, ll.noise2$re75)
+
+var(lalonde$re74)
+var(lalonde$re75)
+cor(lalonde$re74, lalonde$re75)
+
+cor(lalonde$re74, ll.noise1$re74)
+cor(lalonde$re75, ll.noise1$re75)
+
+cor.test(lalonde$re74, ll.noise1$re74)
+cor.test(lalonde$re75, ll.noise1$re75)
+# correlated noise
+
+cor(lalonde$re75, ll.noise2$re75)
+cor(lalonde$re74, ll.noise2$re74)
+
+cor.test(lalonde$re75, ll.noise2$re75)
+cor.test(lalonde$re74, ll.noise2$re74)
+# uncorrelated noise
+
+linear_model <- lm(re78 ~ treat + age + education + black + re74 + re75, data=lalonde)
+anova(linear_model)
+summary(linear_model)
+
+#linear_model <- lm(treat ~ age + education + black + re74 + re75 + re78, data=lalonde %>% filter(treat == 1))
+#anova(linear_model)
+#summary(linear_model)
+
+linear_model <- lm(re78 ~ treat + age + education + black + re74 + re75, data=ll.noise1)
+anova(linear_model)
+summary(linear_model)
+
+linear_model <- lm(re78 ~ treat + age + education + black + re74 + re75, data=ll.noise2)
+anova(linear_model)
+summary(linear_model)
+```
+
+

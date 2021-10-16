@@ -1,0 +1,328 @@
+---
+title: "Data confidentiality - Homework Assignment 3"
+author: "Elisabeth Linek"
+date: "16.06.2018"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+toc: yes
+---
+# Task 1
+Preparation, reading the manual, downloading and installing the relevant packages as well as the data set. Loading data.
+
+```{r}
+library('dplyr')
+library('synthpop')
+#library('pracTools')
+
+load("nhis.RData")
+
+#first check on data 
+summary(nhis)
+
+#checking for missings in original data set
+#table(is.na(nhis))
+
+n <- as.data.frame(nhis)
+
+head(n)
+```
+
+# Task 2
+Using synthpop, generate synthetic data for the variables age.grp, race, inc.grp, and  notcov using CART models without smoothing.
+```{r}
+
+#variables to be protected: race, age.grp, inc.grp, notcov
+m<-10
+n<-nrow(nhis)
+
+data.org<-nhis
+
+#generate synthetic data 
+method.ini <- c("","cart","","cart","cart","","cart")
+#visit.ini <- c(1,3,6,4,2,5,7)
+visit.iniT<-c(1,3,6,4,2,5,7)
+syn.data1 <- syn(nhis,m=10,method=method.ini,visit.sequence = visit.iniT, drop.pred.only = FALSE)
+names(syn.data1)
+
+summary(syn.data1$syn[[1]])
+syn.data1$method
+
+head(syn.data1$syn[[1]])
+
+#order: race, age.grp, inc.grp, notcov
+```
+
+
+
+# Task 3 
+Synthesis of same four variables using parametric models for each variable
+
+```{r}
+# parametric synthesis model 
+#method.iniP <- c("","parametric","","parametric","parametric","","parametric") #first try to get it running
+#method.iniP <- c("","logreg","","logreg","parametric","","logreg") 
+method.iniP <- c("","polyreg","","polyreg","polyreg","","logreg")
+syn.data2 <- syn(nhis,m=10,method=method.iniP,visit.sequence = visit.iniT, drop.pred.only = FALSE )
+
+summary(syn.data2$syn[[1]])
+syn.data2$method
+
+#in order to check
+head(syn.data2$syn[[1]])
+
+```
+
+
+# Task 4 
+Use the compare command provided in synthpop to evaluate the quality of your synthetic data for the four variables for both data sets. Would you prefer one of the two synthesis strategies based on your findings?
+```{r}
+# CART syn data 1 - compared to original data
+compare.synds(syn.data1,nhis,vars=c("age.grp","race","inc.grp","notcov"))
+
+
+# PARAMETRIC syn data 2 - compared to original data
+compare.synds(syn.data2,nhis,vars=c("age.grp","race","inc.grp","notcov"))
+```
+Note:
+Compared, both synthesized data sets seem to be quite close to the original data. All shown differences are on quite a small level. It is difficult to say which one to chose better or to prefer. I would probably decide on a conservative base in order to be on the save side. But: the risk for disclosure is not yet calculated and not to be detected by the given comparison. The fact or better said the risk of disclosure should be taken into account when it comes to decide for one or another method. So my answer here is that further analysis based on the synthesized data sets needs to be done in order to decide which method should be preferred.
+
+# Task 5 
+Cross tabulate the variables medicaid and notcov using the original data and your synthetic data sets.
+```{r}
+# based on the original data
+table(nhis$medicaid,nhis$notcov)
+
+# CART data - 1st
+table(syn.data1$syn[[1]]$medicaid,syn.data1$syn[[1]]$notcov)
+
+# PARAMETRIC data - 1st
+table(syn.data2$syn[[1]]$medicaid,syn.data2$syn[[1]]$notcov)
+
+# CART data - 2nd (just a second check to get more into data)
+table(syn.data1$syn[[1]]$medicaid,syn.data1$syn[[1]]$notcov)
+
+# PARAMETRIC data - 2nd 
+table(syn.data2$syn[[1]]$medicaid,syn.data2$syn[[1]]$notcov)
+
+```
+Note:
+Within the original data set nhis, there are no units observed where the variable medicaid=1 AND the variable notcov=1. 
+As the comparison shows, I have such cases within my synthetic data sets. So the results show, that there is a restricting variable (medicaid) within the original data, that the synthesis has not taken into account, especially the CART model is not coming close to the original data here, which needs to be adjusted.
+
+
+# Task 6
+Adjusting the synthesis with regard to findings under task 5, building new synthetic data sets, m20.
+```{r}
+m2 <- 20
+
+#first defining the rule that has to be taken into account
+rules.medi_notcov <- list(notcov = "medicaid == 1")
+rvalues.medi_notcov <- list(notcov = 2)
+
+#syn.data3 CART model
+method.ini<-c("","cart","","cart","cart","","cart")
+syn.data3<-syn(nhis,m=m2,rules= rules.medi_notcov, rvalues = rvalues.medi_notcov, method=method.ini,visit.sequence=visit.iniT, drop.pred.only=FALSE)
+ 
+#syn.data4 Parametric model
+#method.iniP <- c("","parametric","","parametric","parametric","","parametric")
+method.iniP <- c("","polyreg","","polyreg","polyreg","","logreg")
+syn.data4 <- syn(nhis,m=m2,rules= rules.medi_notcov, rvalues = rvalues.medi_notcov,
+method=method.iniP,visit.sequence = visit.iniT, drop.pred.only = FALSE )
+
+
+#checking the new results with Crosstabs again:
+
+#synt. cart data
+table(syn.data3$syn[[1]]$medicaid,syn.data3$syn[[1]]$notcov)
+
+#synt. parametric data
+table(syn.data4$syn[[1]]$medicaid,syn.data4$syn[[1]]$notcov)
+
+```
+Note: 
+The 'new' crosstables show, that the under task 5 detected problem is solved, notcov=1=medicaid=1 -> 0 units for both synthesis models!
+
+
+# Task 7
+Logit model regressing notcov on sex, educ, race, and inc.grp using syn.data3 and syn.data4
+```{r}
+
+#CART data - after rules-integration
+logit.syndata3 <- glm.synds(notcov ~ sex + educ + race + inc.grp, data = syn.data3, family = "binomial")
+summary(logit.syndata3)
+
+
+#PARAMETRIC data - after rules-integration
+logit.syndata4 <- glm.synds(notcov ~ sex + educ + race +inc.grp, data = syn.data4, family="binomial")
+summary(logit.syndata4)
+
+```
+Note: 
+With regard to the variable notcov the parametric synthesis model leads to better results when it comes to a comparison between both, based on the reuslts of the logit model regresing the notcov-variable in both data sets.
+
+
+
+# Task 8
+Compare the results of these regression models to the results that you would have obtained based on the original data using the compare command.
+```{r}
+#CART data - after rules-integration
+compare.fit.synds(logit.syndata3, nhis, incomplete = T, population.inference = T, plot = "coef")
+
+#PARAMETRIC data - after rules-integration
+compare.fit.synds(logit.syndata4, nhis, incomplete = T, population.inference = T, plot = "coef")
+
+```
+Note:
+The comparison shows, that with syn.data3 there are some differences regarding the education variable as well as the variable race. Syn.data4 fits guite well compared to the original data.
+
+
+
+# Task 9
+Compute this risk measure for the variable inc.grp for syn.data3 and syn.data4. Since you have  multiple synthetic data sets, compute the risk measure as the average across the 20 replicates.
+```{r}
+
+#step 1: comparing the variable structure for the data sets, based on an example data set 10
+
+head(nhis)
+head(syn.data3$syn[[10]])
+head(syn.data4$syn[[10]])
+
+#step2:
+rownames_nhis <- rownames(nhis)
+rownames_syn.data3 <- rownames(syn.data3$syn[[1]])
+rownames_syn.data4 <- rownames(syn.data4$syn[[1]])
+
+#focus on syn.data 3
+test1 <- as.data.frame(cbind(rownames_nhis,rownames_syn.data3))
+colnames(test1)
+test1$comp <- ifelse(test1$rownames_syn.data3==test1$rownames_nhis,0,1)
+summary(test1$comp)
+
+#focus on syn.data 4
+test2 <- as.data.frame(cbind(rownames_nhis,rownames_syn.data4))
+colnames(test2)
+test2$comp <- ifelse(test2$rownames_syn.data4==test2$rownames_nhis,0,1)
+summary(test2$comp)
+
+
+#step3: freq. syntehesized value equal to the original data
+
+inc.grp_orig <- nhis$inc.grp
+comp_3means <- vector(mode = "numeric", length = 20)
+comp_4means <- vector(mode = "numeric", length = 20)
+for (i in 1:20) {
+  syn.data3$syn[[i]]$comp <- ifelse(syn.data3$syn[[i]]$inc.grp == inc.grp_orig, 1,0) 
+  syn.data4$syn[[i]]$comp <- ifelse(syn.data4$syn[[i]]$inc.grp == inc.grp_orig, 1,0) 
+  comp_3means[i] <- mean(syn.data3$syn[[i]]$comp)
+  comp_4means[i] <- mean(syn.data4$syn[[i]]$comp)
+    }
+mean(comp_3means)
+mean(comp_4means)
+```
+Note:
+The described risk measure for the disclosure risk is for both synthesis models almost equal at a level of 0,19. That can be interpreted in terms that 19 percent or with other words less then 20 percent of the income.grp values are equal to the orinal data set.
+I feel not "experienced" enough to interpret that in terms of a very low or low disclosure risk, but in my opinion it shows a risk´k that can be taken into account. It is not a high risk for disclosure.
+
+
+
+
+#----- Followng tasks ased on data set cps5000.RData
+
+# Task 10
+Synthesize only the tax variable using a CART model with a kernel density estimator applied when drawing synthetic values from the leaves of the regression tree
+```{r}
+#preparation, loading the data set
+load("cps5000.Rdata")
+summary(cps)
+head(cps)
+
+#synthesis using CART model
+#variables to be protected: tax
+m<-10
+n<-nrow(cps)
+
+#generate synthetic data 
+method.ini.1 <- c("","","","","","","","","cart")
+visit.ini.1 <- c(2,3,4,5,6,7,8,9,1)
+syn.data5 <- syn(cps,m=10,method=method.ini.1,visit.sequence = visit.ini.1, drop.pred.only = F,
+                 smoothing = list(tax = "density"))
+names(syn.data5)
+
+summary(syn.data5$syn[[1]])
+
+#head(syn.data5$syn[[1]])
+
+```
+
+
+
+# Task 11
+Synthesize the tax variable using fully parametric methods
+```{r}
+library(synthpop)
+
+org.data<-cps
+#org.data$income<-org.data$income^(1/3)
+#org.data$tax<-org.data$tax^(1/3)
+#org.data$csp<-org.data$csp^(1/3)
+#org.data$ss<-org.data$ss^(1/3)
+
+#method.ini.2<-c("","","","","","","","","sample") 
+method.ini.2<-c("","","","","","","","","norm")
+visit.ini.2<-c(2,3,4,5,6,7,8,9,1)
+syn.data6<-syn(org.data,m=10,method=method.ini.2, visit.sequence=visit.ini.2, drop.pred.only=FALSE)
+
+summary(syn.data6$syn[[1]])
+syn.data6$method
+
+head(syn.data6$syn[[1]])
+```
+
+
+# Task 12
+Comparison of tax variable
+```{r}
+
+# CART syn data 5 - compared to original data
+compare.synds(syn.data5,cps,vars=c("tax"))
+
+# PARAMETRIC syn data 6 - compared to original data
+compare.synds(syn.data6,cps,vars=c("tax"))
+
+```
+Note:
+The comparison shows only small differences between the original data and the synthetic data sets. 
+CART method and parametric synthesis lead to (almost) equal results.
+But I tried different parametric models before i came up with the final design, depending on the method the results for the parametric synthesis differed.
+
+
+# Task 13
+Generate a synthetic data set based on parametric models that accounts for the large  number of zeros in the tax variable
+```{r}
+org.data<-cps
+
+#handing over the semi-cont variable
+semi.tax <- list(tax = 0)
+#semi.tax <- list(tax)
+
+method.ini.3<-c("","","","","","","","","norm")
+visit.ini.3<-c(2,3,4,5,6,7,8,9,1)
+syn.data7<-syn(org.data,m=10,method=method.ini.3,visit.sequence=visit.ini.3, semicont=semi.tax, drop.pred.only=FALSE)
+#syn.data7<-syn(org.data,m=10,method=method.ini.3,visit.sequence=visit.ini.3, semicont = list(tax), drop.pred.only=FALSE)
+
+summary(syn.data7$syn[[1]])
+syn.data7$method
+head(syn.data7$syn[[1]])
+
+
+# PARAMETRIC syn data 7 - compared to original data
+compare.synds(syn.data7,cps,vars=c("tax"))
+
+```
+
+Note:
+I have to admit, that i can not detect any changes within the two synthesized data sets syn.data6 and syn.data7. How to deal with s spike on tax=0, when it is such an amount of units containing this content?
+
