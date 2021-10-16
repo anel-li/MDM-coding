@@ -1,0 +1,120 @@
+---
+title: "Web Scraping: Assignment 4"
+author: "Elisabeth Linek"
+output: html_document
+---
+
+
+### 0. Preparation: Load packages
+
+```{r load packages, warning = FALSE, message = FALSE}
+library(pageviews)
+library(WikipediR)
+library(httr)
+```
+
+##### 1. Accessing Wikipedia pageviews data
+
+The Wikimedia REST API provides access to Wikimedia content and data in machine-readable formats.
+
+a. Familiarize yourself with the API by studying the documentation at https://wikimedia.org/api/rest_v1/. The Wikimedia Services team expects you to specify responsible queries. How should your queries look like in order to comply to the rules? (Answer in a couple of sentences)
+b. One of the endpoints provides access to the pageview counts of a given Wikipedia article in a given date range. Give the request URL for an example query of this endpoint! You can freely choose all available parameters.
+c. The `pageviews` package is an R client of the pageviews endpoint of the Wikimedia REST API. Check out how the package works. Then, specify two queries - one for the article on Donald Trump and one for Hillary Clinton on the English Wikipedia between January and December 2016. Based on the data returned by the API, plot both time-series of pageviews against each other!
+d. The `WikipediR` package provides access to more content on single Wikipedia pages. Check out its functionality and use it to find out content and metadata features of the article on Donald Trump in the English Wikipedia. Use at least 4 different functions from the package in your exploration of the data!
+
+<!-- https://www.w3schools.com/html/html_lists.asp -->
+<span style="color:blue">
+<ol type="a">
+  <li>The query should include the User-Agent or Api-User-Agent header that refers to a contact point (e.g. my e-mail address). Besides agreeing to the maximum request limit of 200 requests/s you as well agree to the Terms of Use and Privacy Policy by using the API.</li>
+  <li>https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/all-agents/List_of_tallest_buildings/daily/20180310/20180325</li>
+</ol>
+</span>
+
+```{r, eval = TRUE}
+# c pageviews Trump vs Clinton
+trump <- article_pageviews(project = "en.wikipedia", article = "Donald_Trump"
+  , start = as.Date('2016-01-01'), end = as.Date("2016-12-31")
+  , user_type = c("user"))
+
+clinton <- article_pageviews(project = "en.wikipedia", article = "Hillary_Clinton"
+  , start = as.Date('2016-01-01'), end = as.Date("2016-12-31")
+  , user_type = c("user"))
+
+plot(1:nrow(trump), trump$views, type="l", col="brown", main="Trump vs Clinton", xlab="Day of year", ylab="Count of pageviews")
+lines(1:nrow(clinton), clinton$views, col="red")
+legend(1, 6000000, legend=c("Trump", "Clinton"),
+       col=c("brown", "red"), lty=1)
+
+# d WikipediR
+content = page_content(language="en", project="wikipedia", page_name="Donald_Trump")
+nchar(content)
+
+links = page_links(language="en", project="wikipedia", page="Donald_Trump", clean_response=TRUE)
+head(links[[1]]$links, 5)
+
+info = page_info(language="en", project="wikipedia", page="Donald_Trump", clean_response=T)
+info
+
+cats = categories_in_page(language="en", project="wikipedia", page="Donald_Trump", clean_response=T)
+cats[[1]]$categories$title
+
+```
+
+
+
+##### 2. Checking the current weather with the OpenWeatherMap API
+
+OpenWeatherMap (http://openweathermap.org/) is a service that provides (partly for free) weather data.
+
+a. Familiarize yourself with the API for current weather data at http://openweathermap.org/current. Give the request URL for an example query that asks for the current weather in Paris, Texas, in imperial units, French language, and XML format! Use a fictional API key to complete your URL.
+b. Sign up for the API (for free!) at http://openweathermap.org/api and store the API key in a local `.RData` file. (Important: You don't have to give proof for this step. In particular, you don't have to show how you store the key - I don't want to see it in the script!!)
+c. Import the key into R and construct a query that retrieves the current weather conditions in Cape Town, South Africa. Prepare the output as a `data.frame` object (presumably with one observation) and print it out.
+d. Finally, build a function getOpenWeather() that has the parameters `apikey`, `location`, and `units`, and that lets you automatically perform a query to the OpenWeatherMap API for the current weather conditions given valid values for the parameters. Test it with a couple of examples!
+
+```{r, eval = TRUE}
+# a
+# http://api.openweathermap.org/data/2.5/weather?q=Paris,US&units=imperial&lang=fr&mode=xml&appid=1234567890abcdef1234567890abcdef
+
+# b
+# api_key="1234567890abcdef1234567890abcdef"
+# save(api_key, file=".RData")
+# done
+
+# c
+load(".RData")
+
+url   <- "http://api.openweathermap.org"
+path  <- "data/2.5/weather"
+query <- list(q="Cape Town,ZA", appid=api_key)
+
+r <- GET(url=url, path=path, query=query)
+df <- content(r, "parsed")
+
+# long version
+df
+# short and more readable version
+str(df)
+
+# d
+getOpenWeather <- function(apikey, location, units) {
+  url   <- "http://api.openweathermap.org"
+  path  <- "data/2.5/weather"
+  query <- list(q=location, units=units, appid=apikey)
+  r <- GET(url=url, path=path, query=query)
+  df <- content(r, "parsed")
+  return(df)
+}
+
+# should be the same as above
+str(getOpenWeather(api_key, "Cape Town,ZA", "metric"))
+str(getOpenWeather(api_key, "Cape Town,ZA", "imperial"))
+# so lets see how is it in
+str(getOpenWeather(api_key, "Paris,FR", "metric"))
+str(getOpenWeather(api_key, "Nassau,BS", "metric"))
+str(getOpenWeather(api_key, "Nunavut, CA", "metric"))
+str(getOpenWeather(api_key, "Aguas Calientes, PE", "metric"))
+
+```
+
+
+

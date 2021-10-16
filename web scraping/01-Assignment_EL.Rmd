@@ -1,0 +1,112 @@
+---
+title: "Web Scraping: Assignment 1"
+author: "Elli Linek"
+output: html_document
+---
+
+
+### 0. Preparation: Load packages
+
+```{r load packages}
+# enter your R code here
+
+library(stringr)
+library(tidyr)
+
+```
+
+
+### 1. The ultimate regular expression
+
+Find a regular expression that matches any text!
+
+```{r}
+# enter your R code here
+
+anytext <- "Which regular expression matches any text?"
+str_subset(anytext, ".+")
+answer <- ".+ matches any text"
+answer
+```
+
+<span style="color:blue">
+If you want to add a comment outside the R code block, use this <span> block! (just copy the <span>...</span> lines for future comments in the Rmd file.)
+</span>
+
+
+### 2. Finding strings that are matched by regular expressions
+
+Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.
+
+a. [0-9]+\\$
+b. b[a-z]{1,4}
+c. .*?\\.txt$
+d. \\d{2}/\\d{2}/\\d{4}
+e. <(.+?)>.+?</\\1>
+
+```{r}
+# Example
+str_extract_all("Phone 150$, TV 690$", "[0-9]+\\$") # Answer: this regex describes prices in dollars
+
+#b
+str_extract_all("birds, bees, bears, even bugs would match, monkeys would not", "b[a-z]{1,4}") # Answer: this regex extracts words starting with b followed by 1 to 4 other lower case letters (letters after b between 1 and 4)
+
+#c
+str_extract_all("list of files: textfile.txt, anothertextfile.txt, notatextfile.jpeg, neitheratextfile.ppt againatext.txt", ".*?\\.txt$") # Answer: extracts all text or characters that are before a string with .txt at the end, meaning .txt being the last phrase
+
+#d
+str_extract_all("it's a birthday on 19/03/1982","\\d{2}/\\d{2}/\\d{4}") # Answer: that regex is giving back structured dates: 2-digits per day, 2-digits per month and 4-digits for the year, all divided by /
+
+#e
+str_extract_all("<h1> here in between is a headline on first level within an html file </h1>","<(.+?)>.+?</\\1>") # Answer: the regex is refereing to a text between <...> and <...> where /1 is referenicating the first group again, just like it is within html logic
+
+
+# enter your R code here to solve b. to e.
+```
+
+
+### 3. Manipulating an email address
+
+Consider the mail address  datalover89[at]aol[dot]com. Now, complete the following tasks.
+
+a. Transform the string to a standard mail format (i.e., replace the square brackets with the appropriate symbols) using regular expressions.
+b. Now extract the local-part ("datalover89") and the domain ("aol") separately. 
+
+```{r}
+# enter your R code here
+
+raw.data <- "datalover89[at]aol[dot]com"
+
+#a
+email<- str_replace_all(raw.data, pattern = "\\[at]" ,replacement = "@")
+email<- str_replace_all(email, pattern = "\\[dot]" ,replacement = "\\.")
+email
+
+#b
+str_match("datalover89@aol.com","(.*?)@(.*?)\\.")[-1]
+
+
+```
+
+
+### 4. A secret message
+The following code hides a secret message. Crack it with R and regular expressions. Once you have cracked it, try to collapse the solution in one single string. <i>Hint: Some of the characters are more revealing than others!</i> 
+
+secret <- "clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.RqoE65fGEa1otfb7wXm24k.6t3sH9zqe5fy89n6Ed5t9kc4fR905gmc4Ogxo5nhk!gr"
+
+
+```{r}
+
+library(stringr)
+
+ raw.data <- "clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.RqoE65fGEa1otfb7wXm24k.6t3sH9zqe5fy89n6Ed5t9kc4fR905gmc4Ogxo5nhk!gr"
+ 
+ secret <- unlist(str_extract_all(raw.data, "[[:upper:].!]"))
+ secret <- paste( unlist(secret), collapse='')
+ secret <- str_replace_all(secret, pattern = "\\." ,replacement = " ")
+ secret
+ 
+# enter your R code here
+```
+
+

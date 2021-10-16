@@ -1,0 +1,207 @@
+---
+title: "Web Scraping: Assignment 2"
+author: "Elli Linek"
+output: html_document
+---
+
+
+### 0. Preparation: Load packages
+
+```{r load packages}
+# load the needed packages here
+
+library(stringr)
+library(xml2)
+library(dplyr)
+library(rvest)
+#library(tidyverse)
+```
+
+
+### 1. Getting information out of an XML file
+
+The file `potus.xml`, available at http://www.r-datacollection.com/materials/ch-4-xpath/potus/potus.xml, provides information on past presidents of the United States.
+
+a. Import the file into R using `read_xml()`, which works like `read_html()`---just for XML files.
+b. Extract the nicknames of all presidents, store them in a vector `nicknames`, and present the first 5 elements of this vector. <i>(Hint: instead of `html_nodes()` and `html_text()`, you will need the corresponding functions for XML documents.)</i>
+c. Which religious denomiation is represented most frequently among the former presidents?
+d. Extract the occupation values of all presidents who happened to be Baptists.
+
+
+```{r}
+# enter your code here
+
+#a import of file
+parsed_doc <- read_xml("http://www.r-datacollection.com/materials/ch-4-xpath/potus/potus.xml")
+xml_find_num(parsed_doc, "count(//president)") 
+
+# parsed_doc 
+# xml_structure(parsed_doc)
+
+
+#b extaction of nick names
+nicknames <- xml_nodes(parsed_doc, xpath = "/document/president/nickname/text()")
+nicknames [1:5]
+
+
+#c religion freq
+religion <- xml_nodes(parsed_doc, xpath = "/document/president/religion/text()")
+as.data.frame(table(xml_text(religion)))
+
+
+#d occupation of baptist presidents
+occupation_bap <- xml_find_all(parsed_doc, "/document/president/religion[text()='Baptist']/../occupation/text()")
+occupation_bap
+
+
+```
+
+
+### 2. Scraping newspaper headlines
+
+Use Selectorgadget and R to scrape the article headlines from https://www.theguardian.com/international. 
+
+a. Present the first 6 observations from the uncleaned vector of scraped headlines.
+b. Tidy the text data (e.g., remove irrelevant characters if there are any, and get rid of duplicates).
+c. Identify the 5 most frequent words in all headlines. (Hint: use a string processing function from the stringr package to split up the headings word by word, and use an empty space, " ", as splitting pattern.)
+
+
+```{r}
+# enter your code here
+
+
+#a parsing headlines uncleaned
+parsed_doc2 <- read_html("https://www.theguardian.com/international")
+headlines_uncleaned <- html_nodes(parsed_doc2, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "js-headline-text", " " ))]')
+headlines_uncleaned %>% head(6)
+                        
+
+#b_1 refine to "clean" headlines
+headlines_cleaned <- html_nodes(headlines_uncleaned, xpath = '//*[(@id = "headlines")]//*[contains(concat( " ", @class, " " ), concat( " ", "fc-item__title", " " ))]' )
+headlines_cleaned %>% head(6)
+
+#b_2 get rid of non text stuff
+headlines_cleaned <- html_nodes(headlines_uncleaned, xpath = '//*[(@id = "headlines")]//*[contains(concat( " ", @class, " " ), concat( " ", "fc-item__title", " " ))]/descendant::text()[normalize-space()]' )
+headlines_cleaned %>% head(6)
+
+#b_3 join the list pairwise ' / ' as a separator like on the site
+headlines <- paste(headlines_cleaned[c(T,F)], headlines_cleaned[c(F,T)], sep = " / ")
+headlines %>% head(6)
+
+
+#c_1
+words = headlines %>%
+#  str_replace_all("[[:punct:]]", "") %>% # might be a little agressive though
+  str_replace_all("/", "") %>%            # no slashes
+  str_replace_all("  +", " ") %>%         # no double (or more) spaces
+#  str_to_lower %>%                       # it's about the words not the case
+  str_split(" ") %>%                      # split up into words
+  unlist                                  # unlist to have only one list of words
+words_ignored = c("in", "for", "us", "as", "after") #integrated after first try in order to get rid of
+words <- words[!words %in% words_ignored]
+
+#c_2 get the frequency of words
+x = as.data.frame(table(words))
+
+#c_3 top 5
+x[order(-x[,2]),] %>% head(5)
+
+
+```
+
+
+
+### 3. Skyscrapers of the world
+
+Scrape the table "Buildings under construction" from https://en.wikipedia.org/wiki/List_of_tallest_buildings.
+
+a. Present the first 6 rows of the generated data frame.
+b. How many of those buildings are currently built in China? Use `table()` to present the result!
+c. In which city are most of the tallest buildings currently built?
+d. What is the sum of the planned architectural height of all those skyscrapers? 
+
+
+```{r}
+# enter your code here
+
+html = read_html("https://en.wikipedia.org/wiki/List_of_tallest_buildings")
+constructions = html_table(html_nodes(html, "table")[[6]])
+
+# first 6
+constructions %>% head(6)
+
+# count of buildings in china
+table(filter(constructions, Country == "China")$Country)
+
+# no. built by city
+constructions %>%
+  group_by(City) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+# sum of all skyscrapers
+# constructions = rename(constructions, pah = `Planned architectural height`)
+x = constructions %>%
+  mutate(pah = as.numeric(
+            str_replace(`Planned architectural height`, " *m.*", "") %>%
+            str_replace_all("[[:space:],]","")))
+sum(x$pah)
+
+
+```
+
+
+### 4. Downloading HTML files
+
+Continuing with the last task, the goal is now to download the Wikipedia pages behind the links that lead to the articles on the buildings under construction. To that end, 
+
+a. create a set of links referring to these buildings from the first column of the table,
+b. create a folder "skyscraper_htmls", and
+c. download the HTML files to that folder.
+
+Finally, check the number of files in that folder.
+
+
+```{r}
+# enter your code here
+
+
+domain = "https://en.wikipedia.org"
+html = read_html("https://en.wikipedia.org/wiki/List_of_tallest_buildings")
+
+links = html_text(html_nodes(html, xpath = '//table[6]//td[1]/a/@href'))
+
+# create dir and change into
+htmls_dir = "skyscraper_htmls"
+# create htmls_dir in working directory (getwd); no warnings if dir exists
+dir.create(file.path(getwd(), htmls_dir), showWarnings = FALSE)
+
+for (l in links) {
+  if (str_detect(l, "/w/index\\.php.*"))
+    next # skip not yet existing articles
+
+  html = read_html(paste0(domain, l))
+
+  # use title as file name
+  title = html_text(html_nodes(html, css = 'title'))
+  file_name = paste0(htmls_dir, "/", title, ".html")
+
+  # open file to write
+  write_html(html, file_name)
+}
+
+
+
+# there are 28 html files within the folder C:\[...]\IPSDS\SURV736_Web scraping_spring 2018\skyscraper_htmls
+
+
+
+```
+
+
+
+
+
+
+
+

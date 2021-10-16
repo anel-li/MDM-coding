@@ -1,0 +1,164 @@
+---
+title: "Web Scraping: Assignment 3"
+author: "Simon Munzert"
+output: html_document
+---
+
+
+### 0. Preparation: Load packages
+
+```{r load packages}
+library(RSelenium)
+library(dplyr)
+library(robotstxt)
+
+R.version
+# Enter R code here
+```
+
+
+### 1. Accessing data from a dynamic webpage
+
+*Note: If you are not able to get this code compiled using `knitr`, or if you fail at setting up Selenium on your machine, simply document your code and set `eval = FALSE` in the code snippet header*.
+
+In the following, use `RSelenium` together with Selenium to run a search query on Google Trends. To that end, implement the following steps:
+
+a. Launch a Selenium driver session and navigate to "https://trends.google.com/trends/".
+b. Run a search for "data science".
+c. Once you are on the Results page, add another keyword for comparison, "rocket science". You might need the `sendKeysToActiveElement()` function together with the `key = "enter"` functionality to get this running. Important note: this step causes trouble when knitting the document. Just write down the needed lines and then comment them out before knitting.
+d. Download the CSV file that contains the data on the interest in these terms over time.
+e. Store the live DOM tree in an HTML file on your local drive.
+f. Close the connection.
+
+
+```{r, eval = TRUE}
+# wasn't able to run the standalone server alone, used chromedriver which worked like this
+# java -Dwebdriver.chrom.driver="chromedriver.exe" -jar selenium-server-standalone-3.11.0.jar
+
+remDr <- remoteDriver(remoteServerAddr = "localhost",
+                      port = 4444,
+                      browserName = "chrome")
+remDr$open()
+
+# a
+remDr$navigate("https://trends.google.com/trends/")
+# check where we are
+remDr$getTitle()
+
+# b
+search_box = remDr$findElement(using = 'id', value = "input-0")
+search_box$sendKeysToElement(list("data science", key = 'enter'))
+# check where we are
+remDr$getTitle()
+
+# c
+button = remDr$findElement(using = 'xpath', '//*[@id="explorepage-content-header"]/explore-pills/div/button')
+# activate button
+button$sendKeysToElement(c(key = 'enter'))
+# let some time for js (could be increased for bad connections)
+Sys.sleep(1)
+# enter on now active input element
+remDr$sendKeysToActiveElement(list("rocket science", key = 'enter'))
+# check where we are
+remDr$getTitle()
+# let some time for js (could be increased for bad connections)
+Sys.sleep(1)
+
+# d
+# interest over time is the fist button like this
+csv_button = remDr$findElement(using = 'xpath', value = "//*/button[1][@class='widget-actions-item export']")
+csv_button$clickElement()
+
+# e
+page_source = remDr$getPageSource()[[1]]
+fileConn = file("page.html")
+writeLines(page_source, fileConn)
+close(fileConn)
+
+# f
+remDr$close()
+
+
+```
+
+
+### 2. Writing your own robots.txt file
+
+Write your own `robots.txt` file providing the following rules:
+
+a. The Googlebot is not allowed to crawl your website.
+b. Scraping your `/private/` folder is generally not allowed.
+c. The Openbot is allowed to crawl the `/private/images folder at a crawl-delay rate of 1 second.
+d. You leave a comment in the txt that asks people interested in crawling the page to get in touch with you via your (fictional) email address.
+
+Use the following text box to document your file:
+
+
+```{}
+# Enter robots.txt code here
+
+User-agent: Googlebot
+Disallow: /
+
+User-agent: *
+Disallow: /private/
+
+User-agent: Openbot
+Crawl-delay: 1
+Allow: /private/images
+
+# interested in crawling this page? get in touch with me@mysite.com
+
+
+```
+
+
+
+### 3. Working with the robotstxt package
+
+Inform yourself about the robotstxt package and install it. Using this package, solve the following tasks:
+
+a. Load the package. Then, use package functions to retrieve the `robots.txt` from the washingtonpost.com website and to parse the file.
+b. Provide a list of User-agents that are addressed in the `robots.txt`.
+c. Using the data that is provided in the parsed `robots.txt`, check which bot has the most "`Disallows"!
+d. Check whether a generic bot is allowed to crawl data from the following directories: `"/todays_paper/"`, `"/jobs/"`, and "/politics/"`.
+
+```{r}
+
+# https://cran.rstudio.com/web/packages/robotstxt/vignettes/using_robotstxt.html
+# using the object oriented way
+
+#a) loading...
+rtxt <- robotstxt(domain="washingtonpost.com")
+
+#b) list of user-agents (i.e. bots):
+rtxt$bots
+
+#c) the most disallowed
+
+# we ignore the '*' user-agent since we want to see only specific agents
+# we count the disallowed fields only
+rtxt$permissions %>%
+  distinct %>% # somehow there are multiple similar entries for Baidu*
+  filter(useragent != '*', field == 'Disallow') %>%
+  group_by(useragent) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  head(1) # and the winner is
+
+# Despite this is the bot with the most disallows the Baidu bots 
+# are not allowed to scrape at all.
+
+#d) check allowed paths
+rtxt$check(paths = c("/todays_paper/", "/jobs/", "/politics/"), bot = '*')
+# F -> not allowed; T -> allowed
+
+
+
+
+
+
+```
+
+
+
