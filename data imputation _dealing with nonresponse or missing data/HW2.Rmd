@@ -1,0 +1,242 @@
+---
+title: "HW2_Multiple Imputation"
+author: "Elli Linek"
+date: "31 Januar 2019"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Pre-requisites
+
+```{r libraries}
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(mice)
+library(norm2)
+```
+
+#Exercise 1
+
+##a) Exploring the data 
+```{r exploring}
+load(file = "self_adj.RData")
+data<-self.adj
+head(data)
+summary(data)
+boxplot(data$age, data$hm, data$hr, data$wm, data$wr)
+
+#sum(is.na(data))
+#sum(!is.na(data))  #in order to get an impression of the amount of missing data
+```
+## there are the following varaibles containing missing values:
+## age 200 NAs
+## hm 803 NAs
+## wm 803 NAs
+## prg 1657 NAs
+## edu 621 NAs
+## etn 610 NAs
+## bm 803 NAs
+
+##b) Missingness mechanism edu and hm
+```{r missingness patterns}
+md.pattern(data) #comparing the number of missings
+#missingness indicator
+data$hmMIS <- is.na(data$hm)
+data$eduMIS <- is.na(data$edu)
+# regression 
+reg1 <- glm(hmMIS~sex+hr+wr+web+wr,data=data)
+summary(reg1)
+reg2 <- glm(eduMIS~sex+hr+wr+web+wr,data=data)
+summary(reg2)
+#I think the missingness mechanism for the hight measured (hm) is MAR since the regression coefficients are significant, to predict works well with all of them "equally". The observation on the data kind of supports the finding.
+#On the other hand, comparing the patterns of missing values between hm and the education varaiable edu i would conclude, that edu is not MAR, but instead MNAR - which implies a complicated impiutation here, taking some assumptions lateron into account.
+```
+
+##c) Multiple imputation of missing values in the dataset
+
+I would decide to have as much variables included in the data set for the imputation as possible. The only variables I would exclude are variables, that are based on calculations  out of data set components, such as the two BMI-values, which I would calculate afterwards based on the imputed data in order to avoid "wrong" imputed data entries. 
+Furthermore I thought about excluding the pregnancy variable (?), due to the pattern of missing data here but: it still contains additional information which could be used for the imputation so i will leave this remaining in the data set for the calculation.
+
+In addition: I think it is better to exclude also pop, since it is constant, and with that may not work as a predictor, as well as org, which is supposed to be constant as well, and arc, since this is kind of missingness indicator.  I kept id, but without it would also work, since it is not relevant for the imputation  process itself, but good to check single cases or units later on, finding it via ID.
+
+What i could see on the data is: hm is missing if src=mgg and edu is missing if src=krul.
+
+
+So, the imputation is relevant for the variables age, hm, wm, edu and . As predictors may work sex, hr, wr and web. Excluded variables are pop and prg (both are constant), bm and br (both can be computed afterwards, since they are based on variables within the data set leaving them in would lead possibly to multi-col-linearity issues) and finally  src (being kind of missingness indicator not being a good predictor nor having any other relevant content).
+
+
+```{r generation of self.red}
+# generating new dataset dropping src prg pop
+self.red <- data[,c("id","age","sex","hm","wm","hr","wr","edu","etn","web")]
+```
+
+
+##d) m=10 imputed data sets, checking back for edu and hm regarding non-convergence
+
+```{r imputation1}
+initial<-mice(self.red,method=c("","norm","","norm","norm","","","polyreg","polyreg",""),maxit=0,print=FALSE)
+initial$loggedEvents
+# I adjust predictor matrix 
+#initial
+pm<-initial$pred
+pm
+# I will change prediction (delete id as predictor from everywhere) I do not want that id will take part in the imputation as predictor. This step can be avoided if you drop id at task b. If you change it you have to change also this part: method=c("",,"norm"). You can list the variables using names(self.red)
+pm["age","id"] <- 0
+pm["hm","id"] <- 0
+pm["wm","id"] <- 0
+pm["edu","id"] <- 0
+pm["etn","id"] <- 0
+pm
+mi1<-mice(self.red,method=initial$meth,pred=pm,seed=123,m=10,maxit=10)
+mi1$loggedEvents
+# some variables were removed: usually etn.2 and web.1 
+
+# I check the convergence
+plot(mi1,c("hm","edu"))
+# Checking the plots i found, the sd of the height_measured varaible hm does not look as expected, so further adjustments might be needed. I'll have to think about that. 
+```
+
+
+
+##e) Checking the body mass indeces, comparing the correlation (generating bm and br)
+
+```{r BMI}
+#step1
+long <- complete(mi1,action="long",include=F)
+#step2
+long$bm <- long$wm/((long$hm/100)*(long$hm/100))
+#step3
+long$br <- long$wr/((long$hr/100)*(long$hr/100))
+#step4MALE
+malecors <- NULL
+for (i in 1:10) {
+  maletemp <- subset(long,sex=="Male"& .imp==i)
+ malecors <- c(malecors,cor(maletemp$bm,maletemp$br))
+}
+#step5MALE
+mean(malecors)
+#step4FEMALE
+femalecors <- NULL
+for (i in 1:10) {
+  femaletemp <- subset(long,sex=="Female"& .imp==i)
+ femalecors <- c(malecors,cor(maletemp$bm,maletemp$br))
+}
+#step5FEMALE
+mean(femalecors)
+```
+
+
+
+
+##f) Inspection of imputed values
+
+```{r inspection}
+summary(mi1$imp$age)
+summary(mi1$imp$hm)
+summary(mi1$imp$wm)
+summary(mi1$imp$edu)
+summary(mi1$imp$etn)
+# I found negative entries within the varaible ae, which does not at all make sense, and could lead to insane results on further investigations or research based on the data set. In addition, there are some units now showing nrealistic weight values, e.g. 22 kg.
+# Desicion: Looking for another mode to impute missing values, setting up a data set with more realistic outcome.
+```
+
+
+##g) Encountering problems based on the parameters set up in d?
+
+```{r imputation2}
+
+initialV2<-mice(self.red,method=c("","cart","","cart","cart","","","polyreg","polyreg",""),maxit=0,print=FALSE)
+initialV2$loggedEvents
+mi2<-mice(self.red,method=initialV2$meth,pred=pm,seed=123,m=10,maxit=10)
+mi2$loggedEvents
+summary(mi2$imp$age)
+summary(mi2$imp$hm)
+summary(mi2$imp$wm)
+summary(mi2$imp$edu)
+summary(mi2$imp$etn)
+#Checking back for the occured problems, I can now see, that those are kind of "solved". 
+
+```
+
+
+##h) Re-imputations of the imputed values, tackeling the encountered problems
+
+```{r imputation3}
+pm2 <- pm
+pm2["hm","hr"] <- 0
+pm2["hm","wm"] <- 0
+pm2["hm","wr"] <- 0
+pm2["wm","hr"] <- 0
+pm2["wm","wr"] <- 0
+pm2["wm","hm"] <- 0
+
+pm2
+mi3<-mice(self.red,method=initialV2$meth,pred=pm2,seed=123,m=10,maxit=10)
+mi3$loggedEvents
+
+```
+
+
+
+
+##i) Computation of the correlations between br and bm again 
+
+```{r correlations}
+
+#step1
+long <- complete(mi3,action="long",include=F)
+#step2
+long$bm <- long$wm/((long$hm/100)*(long$hm/100))
+#step3
+long$br <- long$wr/((long$hr/100)*(long$hr/100))
+#step4MALE
+malecors <- NULL
+for (i in 1:10) {
+  maletemp <- subset(long,sex=="Male"& .imp==i)
+ malecors <- c(malecors,cor(maletemp$bm,maletemp$br))
+}
+#step5MALE
+mean(malecors)
+#step4FEMALE
+femalecors <- NULL
+for (i in 1:10) {
+  femaletemp <- subset(long,sex=="Female"& .imp==i)
+ femalecors <- c(malecors,cor(maletemp$bm,maletemp$br))
+}
+#step5FEMALE
+mean(femalecors)
+
+#I would resume, that we are facing a lower correlation, since the imputed values are independent from the variables hm wr wm. Computing the values within the new / adjusted imputation model as independent from originally conditional or correlated variables fixed the occured problems but at the same hand makes correlations with a "wider range", since the they are independent. For example imputing a value for hm indeoendend from hr! All that leading to smaller correlations between the bmi-variables, calculated based on the values partly computed/imputed.
+
+```
+
+
+
+##j) Inspection of missingness pattern in the original data
+
+```{r}
+load(file = "selfreport.RData")
+sr <- selfreport
+md.pattern(sr)
+md.pairs(sr)
+#I would conclude, that this is not a monotone missingness pattern. Leading me to the conclusion, that iterative process of imputation is needed or indicated. Furthermore the order of imputation should be defined carefully, if used for an SRMI in order to avoid effects of the order on the data, leading to inplausible values. The revealed structure also shows, that some of the varaibles may not be computed based on other ones, for example i would assume ending up having problems with edu and etn, as well as the three variables hm wm and bm. Thats just a short review of the shown pattern.
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

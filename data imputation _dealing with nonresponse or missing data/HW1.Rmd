@@ -1,0 +1,318 @@
+---
+title: "HW1_Multiple Imputation"
+author: "Elli Linek"
+date: "10 Januar 2019"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Exercise 1
+
+##a) Missingness mechanism
+I assume, the pattern of missingness to be MCAR, due o the fact, that the missingness is with a probability of 0,5 (as given information from the task) selected from the data set. With that, i assume the missingness of the selected missing values does not depend on the observed data in any way. 
+
+```{r data_imp1}
+# Loading the data set, inspecting it, calculation the asked estimators
+library(dplyr, warn.conflicts = FALSE)
+library(mice)
+
+load(file = "Data_for_Exercise1_and_2.RData")
+dat1<-dat1.imp
+
+#first imressions on data set
+#View(dat1)           
+head(dat1$imp$Y1)
+dat1$nmis             # 4976 missings on Y1
+summary(dat1$data)
+summary(dat1$imp$Y1)
+boxplot(dat1$imp$Y1)
+
+#b)extracting the data sets 
+compd1<-complete(dat1.imp)
+
+#attributes of the now extracted data set
+summary(compd1)
+head(compd1)
+class(compd1)
+
+#in task 1 not used for any calculations, included later on to have a comparison with task2/dataset 2
+compd1.long<-complete(dat1, action="long")
+summary(compd1.long)
+
+compd1.wide<-complete(dat1, action="broad", include=TRUE)
+summary(compd1.wide)
+
+
+#c) mean
+# point estimates per imputed data set
+q1 <- mean(compd1.wide$Y1.1)
+q2 <- mean(compd1.wide$Y1.2)
+q3 <- mean(compd1.wide$Y1.3)
+q4 <- mean(compd1.wide$Y1.4)
+q5 <- mean(compd1.wide$Y1.5)
+
+# final point estimate
+q <- mean(c(q1,q2,q3,q4,q5))
+q
+
+# based on the formula for q_bar-sub_m from the slides
+# the caluclated final point estimate for the mean of Y1 = -0.00776589 (appr. -0.078, calculation seems reasonable compared to the boxplot of the data)
+
+#d) estimated variance of the mean, based on the following "partial" variances
+# bm: Between imputation variance
+bm <- var(c(q1,q2,q3,q4,q5))
+bm
+
+# um: Within imputation variance
+u1 <- var(compd1.wide$Y1.1)
+u2 <- var(compd1.wide$Y1.2)
+u3 <- var(compd1.wide$Y1.3)
+u4 <- var(compd1.wide$Y1.4)
+u5 <- var(compd1.wide$Y1.5)
+um <- mean(c(u1,u2,u3,u4,u5))/10000
+um
+
+#Variance of point estimate, combining the within and the between imputation variance
+m <- 5
+Tm <- um + bm + bm/m
+Tm
+
+# based on the formula:
+# the estimated variance of the mean Y1 estimate is 0.000222
+
+
+#e) CI 95%, relevant parts for the calculation
+rm <- (1+m^-1)*bm/um
+rm
+mu <- (m-1)*(1+rm^-1)^2
+mu
+
+# confidence interval
+c(-1.96*Tm^0.5+q,1.96*Tm^0.5+q)
+
+# based on the formula:
+# the confidence intevall has the lower and upper bound: [-0.03696412 , 0.02143234] 
+
+# the true values given from the information of the task (true value being 0) is falling into the range of the computed CI, so i would assume to have unbiased estimates.
+
+
+#f) fmi
+fmi <- (rm + 2/(mu +3))*(rm+1)^-1 
+fmi
+
+# based on the formula:
+# the calculated fraction of missing information is about 0.0001186
+```
+
+##g) short interpretation of fmi
+According to Rubin, the fraction of missing information reveals or gives an indication, to what extend the data has lost information due to the missing values. The fraction is a ratio of between-imputation variance to total variance. There is an ongoing discussion if such kind of fraction could be used as an "quality estimator" rather then response rates, as it nowadays very often the case.
+
+
+#Exercise 2
+```{r data_imp2}
+# Loading the data set, inspecting it, calculation the asked estimators
+library(dplyr, warn.conflicts = FALSE)
+library(mice)
+library(lattice)
+
+load(file = "Data_for_Exercise1_and_2.RData")
+dat2<-dat2.imp
+
+#first imressions on data set
+#View(dat2)           # I commented that out for the submission 
+head(dat2$imp$Y1)
+dat2$nmis             # 4976 missings on Y1, the same amount as in dat1
+summary(dat2$data)
+summary(dat2$imp$Y1)
+boxplot(dat2$imp$Y1)
+
+
+#extracting the data sets 
+compd2<-complete(dat2)
+class(dat2)
+
+#for comparison on my own behalf
+compd2.long<-complete(dat2, action="long")
+summary(compd2.long)
+
+compd2.wide<-complete(dat2, action="broad", include=TRUE)
+summary(compd2.wide)
+
+#the class assures the idea, that the data set was built under mice and with that, mids can be directly addressed
+
+#analyzing the imputed data
+mean.d2<-with(dat2,lm(Y1~1))
+class(mean.d2)
+summary(mean.d2)
+attributes(mean.d2)
+
+#getting pooled results, based on multiple imp. combining rules 
+final.mean.d2<-pool(mean.d2)
+final.mean.d2
+class(final.mean.d2)  
+attributes(final.mean.d2)
+
+org<-complete(dat2,0)
+mean(org$Y1,na.rm=TRUE)
+#0.001991034
+
+#getting the fmi from the output:
+#fmi = (Intercept) 0.3154285
+
+
+```
+##c) fmi comparison
+fmi_dat1 = 0.59, fmi_dat2 = 0.32 The difference is quite severe, I would assume this difference within the fmi values is due to the difference of the correlation between the Y1 and Y2 values within each of the data sets, these correlations were stated to be 0.2 and 0.8 within the information regarding the two data sets.
+
+##d) Complete case analysis
+I would assume the complete case analysis would lead to almost similar results, since the missingness pattern is MCAR, but I am having one limitation on mind: due to the missing 4976 cases I would assume the variance to be larger, there is a loss in efficiency to be taken into account due to the amount of missing data, which would be excluded from the complete case analysis. A successful multiple imputation could with that lead to a much bigger data set and with that "more narrow" estimates when it come to the variance for example.
+Especially with regard to the second data set dat2, where the correlation is with 0.8 stronger than it is in the first data set (dat1 'only' 0.2). The stronger correlation within dat2 would lead to gain a better imputation model, having a higher level of efficiency. I assume an analysis of the imputed data set here would lead to better results compared to a complete case analysis.
+
+#Exercise 3
+
+```{r loading the flas.red data}
+library(mice)
+ls()
+load(file = "flas_imputed.RData")
+
+#having a first view on the data sets
+summary(flas.imp)
+#head(flas.imp[[1]])
+
+summary(flas.red)
+#head(flas.red)
+
+v <- as.vector(seq(1:257))
+for (i in 1:10) 
+
+#Imputations to be stored from imputation file
+#IDs to be stored
+{flas.imp[[i]]$m <- i
+ flas.imp[[i]]$id <- v}
+
+#flas.red, original data stored with IDs
+flas.red$m <- 0
+flas.red$id <- v
+
+#combining the given information
+c <- rbind(flas.red,flas.imp[[1]],flas.imp[[2]],flas.imp[[3]],flas.imp[[4]],flas.imp[[5]],
+           flas.imp[[6]],flas.imp[[7]],flas.imp[[8]],flas.imp[[9]],flas.imp[[10]])
+
+
+#b) The Foreign Language Attitude Scale (FLAS) is supposed to be an instrument for predicting success in the study of foreign languages. In order to test this hypothesis, please run a probit regression model predicting whether the student achieved an A in the foreign language course (GRD=2), using all the other variables in the imputed dataset as predictors 
+
+# transformation GDR variable in order to run the model later on
+table(c$GRD)
+c$GRD[c$GRD==1] <-0
+table(c$GRD)
+c$GRD[c$GRD==2] <-1
+table(c$GRD)
+
+#turning data into mids after adjusting GDR 
+prepdat<-as.mids(c,.imp=10, .id=11)
+
+#checking back, viewing the built set
+summary(prepdat)
+#head(prepdat)
+class(prepdat)
+
+#trying to run the probit model
+probitMod <- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + SATM + HGPA + CGPA + FLAS , family=binomial(link="probit")))
+
+summary(pool(probitMod))
+
+org.GRD<-(with(prepdat,lm(GRD~1)))
+model.fit<-pool.compare(probitMod,org.GRD)
+
+attributes(model.fit)
+model.fit$method
+model.fit$m
+model.fit$qbar1
+model.fit$qbar0
+model.fit$ubar1
+model.fit$ubar0
+model.fit$Dm
+model.fit$rm
+model.fit$df1
+model.fit$df2
+model.fit$pvalue
+
+
+## Conclusion: FLAS is supposed to "evaluate the reliability of the Foreign Language Attitude Scale, an instrument for predicting success in the study of foreign languages (Raymond and Roberts, 1983)". What I noticed first was, that it is quite a small set of data to predict. Further more taking the missing values into account, doesn't make it a more reliable data base.
+
+#There are:
+#41 missing items in flas.red regarding the Foreign Language Attitude Scale (FLAS). 
+#31 missing items in flas.red regarding SATM
+#31 missing items in flas.red regarding CGPA and
+#26 missing items in flas.red regarding GRD
+
+#Having the information from the model fit, where i looked at: rm = average rel increase of variance due to NR =  0.1459776
+
+#the p-value is almost zero i would conclude to drop the tested hypothesis, in our case the   predicting power of the flas
+
+#_______
+#c) Use the adjusted Wald test for multiply imputed datasets to test whether the two variables SATM and CGPA are jointly significant. 
+
+model1<- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + HGPA  + FLAS + SATM +  CGPA, family = binomial))
+
+model0<- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + HGPA  + FLAS, family = binomial))
+
+pool.compare(model1,model0)$df1
+pool.compare(model1,model0)$rm
+pool.compare(model1,model0)$pvalue
+
+#based on the given p value, i would conclude that there is a joined significance between the variables, but i did not test if the fmi is equal for all coefficients
+
+pool(model1)$fmi
+
+#using the mitml package
+library(mitml)
+
+##need to transform mids obejct into mitml.list object and fit models again
+prepdat.mitml<-mids2mitml.list(prepdat)
+class(prepdat)
+class(prepdat.mitml)
+
+#testing again
+#mod1.mitml<-with(data=prepdat.mitml, glm(GRD~ LAN2 + LAN3 + SEX + MLAT + SATM + HGPA + CGPA + FLAS + SATM + CGPA, family = binomial))
+
+#mod0.mitml<-with(data=prepdat.mitml, glm(GRD~ LAN2 + LAN3 + SEX + MLAT + SATM + HGPA + CGPA + FLAS, family = binomial))
+
+model1<- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + HGPA  + FLAS + SATM +  CGPA, family = binomial))
+
+model0<- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + HGPA  + FLAS, family = binomial))
+
+pool.compare(model1,model0, method="wald") 
+
+#pool.compare(mod1.mitml,mod0.mitml, method="wald") 
+#pool.compare(mod1.mitml,mod0.mitml)$df1
+#pool.compare(mod1.mitml,mod0.mitml)$rm
+#pool.compare(mod1.mitml,mod0.mitml)$pvalue
+
+#model.fit.wald<-testModels(mod1.mitml,mod0.mitmll,method="D1")
+#model.fit.wald$test
+
+#Based on the given p value i would again reject the Hypothesis, that there is a joined significance regarding the variables SATM and CGPA 
+
+#_______
+#d) Use a likelihood-ratio test as an alternative to the adjusted Wald test to evaluate whether the two variables are jointly significant. 
+
+model1<- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + HGPA  + FLAS + SATM +  CGPA, family = binomial))
+
+model0<- with(data=prepdat, glm(GRD ~ LAN2 + LAN3 + SEX + MLAT + HGPA  + FLAS, family = binomial))
+
+pool.compare(model1,model0, method="likelihood") 
+
+
+#The likelihood test lead me to the same results, i would conclude there is no significance in the joined variables.
+
+
+```
+
+
+
