@@ -1,0 +1,252 @@
+---
+title: "Lab Assignment"
+author: "Elisabeth Linek"
+output: html_document
+---
+
+```
+#######################################################################################
+# Lab Exercise A: Comparing Simple Plots
+######################################################################################
+
+# Let's Create Fake Polling Data
+# The numbers are percentages of respondents who see a party
+# as being competent in three policy areas. In addition, we create a
+# variable for which party respondents support.
+```
+
+```{r , warning = FALSE, message = FALSE}
+party <- c("Conservative", "Liberal", "Green", "Socialist")
+economy <- c(65, 40, 52, 28)
+social <- c(36, 38, 8, 73)
+foreign <- c(40, 35, 10, 5)
+support <- c(38, 35, 12, 15)
+
+poll <- cbind(economy, social, foreign, support)
+rownames(poll) <- party
+```
+
+```
+# Using this polling data, compare the perceived policy
+# competence of the four political parties:
+#
+# 1. Start out by comparing economic and social policy.
+# 2. Compare different versions of barcharts and dotplots.
+#    Summarize and discuss what you see in each plot type. Which is better and why?
+# 3. Now plot the same data using line charts.
+#    Again, summarize and discuss: which plot type is the best and why?
+# 4. Add foreign policy and repeat.
+# 5. Optional: You may also change the distributions of the polling data and repeat.
+#
+#  If you are new to R, have a look at the following video
+#  on the course site:
+#  "surv752-code-03-Adding_a_Second_Variable"
+#
+# You may also find the following functions helpful:
+#
+# barplot()
+# dotchart()
+#
+```
+### 1,2
+```{r}
+
+# default
+# in this case not really helpful comparissons are not really possible
+barplot(poll[,c('economy', 'social')], legend=rownames(poll))
+
+# transposed
+# this is having a better comparrison between parties possible, not yet
+# perfict due to lacking 'social' comparisson in this case
+barplot(t(poll[,c('economy', 'social')]), legend=colnames(poll)[c(1,2)])
+
+# besides
+# focus on comparing the parties on the according topic
+barplot(poll[,c('economy', 'social')], beside=T, legend=rownames(poll))
+
+# besides transposed
+# focus on comparing the data in a party, but as well good comparisson between
+# the parties
+barplot(t(poll[,c('economy', 'social')]), beside=T, legend=colnames(poll)[c(1,2)])
+
+
+# default
+# from my perspective it's not the ideal visualisation in order to make
+# the comparisson intuitive
+dotchart(poll[,c('economy', 'social')], xlim=c(0,100) )
+# default transposed
+# this organisation makes it easier to compare the policy areas within
+# each party. No distraction between the inner party comparrison.
+dotchart(t(poll[,c('economy', 'social')]), xlim=c(0,100) )
+
+# trying to order the comparrison by ordering, only helping with one topic
+dotchart(poll[order(economy),c('economy', 'social')], xlim=c(0,100) )
+# same with the other topic
+dotchart(poll[order(social),c('economy', 'social')], xlim=c(0,100) )
+# splitting the data and sorting this individually leads to a direction
+dotchart(cbind(economy=poll[order(economy),c('economy')],
+           social=poll[order(social),c('social')]), xlim=c(0,100) )
+
+# tansposed gives a different flavor
+dotchart(t(cbind(economy=poll[order(economy),c('economy')],
+           social=poll[order(social),c('social')])), xlim=c(0,100) )
+
+# From my point of view the best type of diagram in order to show and
+# compare the policy areas is the 3rd diagram where the policy areas are
+# grouped and a direct comparrison between parties is easily possible and
+# kind of 'supported'.
+```
+
+### 3 line chart
+
+```{r}
+# economy over social...
+# first trial of line chart quite chaotic
+plot(poll[,c('economy', 'social')])
+lines(poll[,c('economy', 'social')])
+
+# in a organized way of the line chart focusing on the differences
+# between the parties (best for the line charts)
+plot(poll[,c('economy')], type="l", ylim=c(0,100), xlim=c(1,4), xlab=rownames(poll), xaxt="n")
+lines(poll[,c('social')])
+axis(1, at=1:4, labels=rownames(poll))
+
+```
+
+### 4 add foreign
+
+```{r}
+barplot(poll[,c('economy', 'social', 'foreign')], legend=rownames(poll))
+barplot(t(poll[,c('economy', 'social', 'foreign')]), legend=colnames(poll)[c(1,2,3)])
+barplot(poll[,c('economy', 'social', 'foreign')], beside=T, legend=rownames(poll))
+barplot(t(poll[,c('economy', 'social', 'foreign')]), beside=T, legend=colnames(poll)[c(1,2,3)])
+
+dotchart(poll[,c('economy', 'social', 'foreign')], xlim=c(0,100) )
+dotchart(t(poll[,c('economy', 'social', 'foreign')]), xlim=c(0,100) )
+dotchart(poll[order(economy),c('economy', 'social', 'foreign')], xlim=c(0,100) )
+dotchart(poll[order(social),c('economy', 'social', 'foreign')], xlim=c(0,100) )
+dotchart(cbind(economy=poll[order(economy),c('economy')],
+           social=poll[order(social),c('social')],
+           foreign=poll[order(foreign),c('foreign')]),
+           xlim=c(0,100))
+dotchart(t(cbind(economy=poll[order(economy),c('economy')],
+           social=poll[order(social),c('social')],
+           foreign=poll[order(foreign),c('foreign')])),
+           xlim=c(0,100))
+
+# not 3d, one dimension is missing
+plot(poll[,c('economy', 'social', 'foreign')])
+lines(poll[,c('economy', 'social', 'foreign')])
+
+plot(poll[,c('economy')], type="l", ylim=c(0,100), xlim=c(1,4), xlab=rownames(poll), xaxt="n")
+lines(poll[,c('social')])
+lines(poll[,c('foreign')])
+axis(1, at=1:4, labels=rownames(poll))
+
+```
+
+After having all those different types of diagrams in my opinion the grouped bar chart
+works the best when it comes to the triangle thump rule to use data visualization in
+order to solve a problem.
+
+
+```
+#######################################################################################
+# Lab Exercise B: Graph Redesign
+######################################################################################
+
+# Use the following freedom house disaggregated dataset 2003-2014 which provides
+# "political rights ratings" (pr_20XX) and "civil liberties ratings" (cl_20XX) for
+# all countries across the globe. Note that the dataset is in "wide" format.
+```
+
+```{r load packages, warning = FALSE, message = FALSE}
+library(foreign)
+```
+
+```{r, warning = FALSE, message = FALSE}
+data <- read.csv("FH_disaggregated_03_14.csv", sep=";")
+```
+
+```
+# 1. Using these data, mimic four of the six (more or less) famous graphic designs
+#    you find on the handout. Use the political rights variable to do this.
+#
+#   I am providing code to help you with the first steps further below –
+#   but use it only when you are stuck yourself!
+#
+# 2. Now, come up with your own re-design according to the principles we
+#    have discussed in the course.
+#
+#  If you are new to R, have a look at the following two videos
+#  on the course site:
+#  "surv752-code-04-Changing_Elements_of_a_Graphic"
+#  "surv752-code-05-Adding_Elements_to_an_Exisiting_Plot"
+#
+#####################################################################################
+# First, some data preparation
+# Turn variables into numeric variable type
+```
+
+```{r, warning = FALSE, message = FALSE}
+data[,-1] <- lapply(data[,-1], as.numeric)
+data <- na.omit(data)
+
+startYear <- 2003
+endYear <- 2014
+
+minVal <- min(data[,grep("pr_", colnames(data))]) - 1
+maxVal <- max(data[,grep("pr_", colnames(data))]) + 1
+
+l_data <- data[sample(1:nrow(data), 30), grep("pr_", colnames(data))]
+highlight <- sample(1:nrow(l_data), 1)
+
+draw <- function(bg_col, hl_col, l_col, t_col, x_grid=F, y_grid=F, frame=T) {
+  par(bg=bg_col, col.axis=t_col, col.lab=t_col)
+  plot(0, 0, xlim=c(startYear, endYear), ylim=c(minVal, maxVal), pch="",  ylab="Political Rights Score", xlab="Year", frame.plot=frame, bg=bg_col)
+  # hm nothing works here to remove the axis properly
+  axis(1, lty="blank", lwd=0, lwd.ticks=0, line=NA)
+  axis(1, lwd=0, lwd.ticks=0)
+  if(x_grid) {
+    grid(nx = NULL, ny = NA, col = "lightgray", lty = "dotted",
+         lwd = par("lwd"), equilogs = F)
+  }
+  if(y_grid) {
+    grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted",
+         lwd = par("lwd"), equilogs = F)
+  }
+  for (i in 1:nrow(l_data)) {
+    if(i == highlight) {
+      next
+    }
+    lines(startYear:endYear, l_data[i,], col=l_col)
+  }
+  lines(startYear:endYear, l_data[highlight,], col=hl_col, lwd=2)
+}
+
+# Tukey
+draw(bg_col="white", hl_col="black", l_col="lightgrey", t_col="black", frame=F)
+# Feltron
+draw(bg_col="#333647", hl_col="yellow", l_col="lightgrey", t_col="lightgrey", frame=F)
+# The Economist
+draw(bg_col="#cfe0e9", hl_col="black", l_col="#4b9fba", t_col="black", frame=F, y_grid=T)
+# Newspaper
+draw(bg_col="white", hl_col="darkblue", l_col="lightgrey", t_col="black", frame=F, y_grid=T)
+
+
+# my way
+draw(bg_col="white", hl_col="red", l_col="lightgrey", t_col="darkgrey", frame=F)
+
+
+```
+
+
+```
+######################################################################################
+```
+
+
+
+
+
+

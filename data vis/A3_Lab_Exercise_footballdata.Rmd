@@ -1,0 +1,369 @@
+---
+title: "Lab Assignment footballdata"
+author: "Elisabeth Linek"
+output: html_document
+---
+
+## Lab Exercise: Explore Football Data
+
+ This dataset containts soccer (or as Europeans prefer: football) player skill ratings
+ (at the time of September 2011).
+ The skill ratings are from the PES Stats Database (PSD), a community-based approach to
+ create a database with accurate statistics and skill ratings for soccer players
+ (originally for the video game "Pro Evolution Soccer" by Konami).
+
+ It contains no less than 43 variables on 1851 players from 4 European Leagues
+ (Bundesliga, La Liga, Premier League, Serie A).
+
+
+## Tasks
+
+ 1. Visually explore the offensive (Attack) and defensive (Defence) skills of soccer players.
+
+    But before going straight to the code, take a few minutes, think and take notes:
+    a) What a priori expectations about the data and possible patterns do you have?
+    b) What general exploration strategy would be appropriate?
+    c) Which comparisons are possible and interesting?
+    d) Which graphical formats would be useful to make these comparisons?
+
+ 2. Make sure you experiment with
+    a) at least three graphical formats as well as
+    b) with comparisons *within a single* plot and comparisons *across multiple* plots!
+
+    If you are new to R, have a look at the following two videos
+    on the course site:
+    "surv752-code-05-Adding_Elements_to_an_Exisiting_Plot"
+    "surv752-code-06-Arranging_Multiple_Plots"
+
+ 3. Finally, try to construct a "bullet graph" as invented by Stephen Few
+    as well as a "slope graph" and "sparklines" as invented by Edward Tufte.
+    (For these latter two graphical formats it's best to use data with a time
+    component - so you may want to go back to the freedom house data.)
+    For this exercise you my find the lines(), segments() and rect() plotting
+    functions helpful.
+ ___________________________________________
+
+
+## 1. visual exploration
+
+ helpful wrt. positions https://en.wikipedia.org/wiki/Association_football_positions
+
+ a) What a priori expectations about the data and possible patterns do you have?
+    * Forwards (offencive players) will have likely better offensive skills and defenders
+      defensive players will have rather better defensive skills. Midfeilders will be likely
+      in between depending on their position forward/defence the according skill will be
+      higher (i.e. defensive midfielders (DMF) will have a higher defence skillset whereas
+      offensive (AMF) will have a likely better offensive skillset).
+    * Midfielders should have a higher passing accuracy than forwards.
+    * Left footed players will play more likeley on the left side in case they don't play on
+      both sides.
+    * The four represented countries in the dataset represent the top four ranked countries
+      in the UEFA association ranking by country of the season 2010-11. The order of the ranking
+      was England, Spain, Italy and Germany at which England was ranked first (not the season
+      ranking!).  This could be reflected in the dataset.
+      https://en.wikipedia.org/wiki/2010%E2%80%9311_UEFA_Champions_League
+      https://www.uefa.com/memberassociations/uefarankings/country/season=2010/index.html
+
+ b) What general exploration strategy would be appropriate?
+    * use the summary function
+    * dplyr to group and and filter the data
+
+ c) Which comparisons are possible and interesting?
+    * Top n teams of the country vs the rest.
+    * Player position distribution wrt. total number of players.
+    * Avg. height by country
+    * dribbling vs passing
+    * Nationalities playing soccer in the four countries ->foreign vs. local
+    * Attack/Defence wrt. age
+
+
+ d) Which graphical formats would be useful to make these comparisons?
+    * since it's just Attack and Defence to compare it's maybe best to go
+      with small minimals to get a wider scope
+
+
+```{r , warning = FALSE, message = FALSE}
+options(tibble.print_max = Inf)
+options(Encoding="UTF-8")
+
+# tabelle - die die daten umreisst, überblick verschafft - wieviele spieler je liga?
+# erste diagramme
+
+library(dplyr)
+library(grDevices)
+
+
+football_data = read.csv("footballdata.csv")
+
+summary(football_data)
+
+football_data %>%
+  group_by(Team) %>%
+  summarise(meanA = mean(Attack), meanD = mean(Defence), n = n())
+
+football_data %>%
+  group_by(Nationality) %>%
+  summarise(n = n())
+
+overall_avg <- football_data %>%
+  summarise(meanA = mean(Attack), meanD = mean(Defence), sdA = sd(Attack), sdD = sd(Defence))
+overall_avg
+
+pos_avg <- football_data %>%
+  group_by(Position) %>%
+  summarise(meanA = mean(Attack), meanD = mean(Defence), n = n()) %>%
+  arrange(meanA, meanD)
+pos_avg
+
+```
+## 2. experimental approximation
+
+```{r , warning = FALSE, message = FALSE}
+ad_by_age <- football_data %>%
+  filter(!is.na(Age)) %>%
+  group_by(Age, Position) %>%
+  summarise(meanA = mean(Attack), meanD = mean(Defence), n = n()) %>%
+  arrange(Age, meanA, meanD)
+
+min_age <- ad_by_age$Age %>% min
+max_age <- ad_by_age$Age %>% max
+
+min_ma <- ad_by_age$meanA %>% min
+max_ma <- ad_by_age$meanA %>% max
+
+print('mean Attack and Defence by Age')
+par(mfrow=c(2, 4))
+for(i in pos_avg$Position){
+  plot(ad_by_age$Age[ad_by_age$Position == i],
+       ad_by_age$meanA[ad_by_age$Position == i],
+       type='l',
+       xlim=c(min_age, max_age),
+       ylim=c(20,100),
+       cex.main=1.5, cex.lab=1, cex.axis=.8,
+       main=i,
+       xlab='Age', ylab='mean Attack',
+       panel.first=c(abline(h=pos_avg$meanA[pos_avg$Position == i], lty=2, col="grey")))
+}
+for(i in pos_avg$Position){
+  plot(ad_by_age$Age[ad_by_age$Position == i],
+       ad_by_age$meanD[ad_by_age$Position == i],
+       type='l',
+       xlim=c(min_age, max_age),
+       ylim=c(20,100),
+       cex.main=1.5, cex.lab=1, cex.axis=.8,
+       main=i,
+       xlab='Age', ylab='mean Defence',
+       panel.first=c(abline(h=pos_avg$meanD[pos_avg$Position == i], lty=2, col="grey")))
+}
+
+
+colors <- c('red', 'yellow', 'blue', 'green')
+leagues <- football_data$League %>% unique %>% sort
+league_color_map <- setNames(as.list(colors), leagues)
+league_color_map
+
+par(mfrow=c(1, 1))
+plot(NULL, xlim=c(0,100), ylim=c(0,100),
+       xlab='Defence', ylab='Attack')
+abline(h=overall_avg$meanA, lty=2, col="grey")
+abline(v=overall_avg$meanD, lty=2, col="grey")
+for (i in leagues) {
+  points(football_data$Defence[football_data$League == i], football_data$Attack[football_data$League == i],
+       pch=20,
+       col=adjustcolor(league_color_map[[i]], alpha.f = 0.4))
+}
+
+# https://www.w3schools.com/charsets/ref_utf_symbols.asp
+neuer <- c(football_data$Defence[football_data$Name == "Manuel Neuer"],
+       football_data$Attack[football_data$Name == "Manuel Neuer"])
+points(neuer[1], neuer[2], pch="⚽")
+text(neuer[1], neuer[2], labels="Neuer", pos=3)
+
+ronaldo <- c(football_data$Defence[football_data$Name == "Cristiano Ronaldo"],
+       football_data$Attack[football_data$Name == "Cristiano Ronaldo"])
+points(ronaldo[1], ronaldo[2], pch="⚽")
+text(ronaldo[1], ronaldo[2], labels="Ronaldo", pos=3)
+
+messi <- c(football_data$Defence[football_data$Name == "Leo Messi"],
+       football_data$Attack[football_data$Name == "Leo Messi"])
+points(messi[1], messi[2], pch="⚽")
+text(messi[1], messi[2], labels="Messi", pos=3)
+
+
+
+leagues <- c('Bundesliga', 'LaLiga', 'PremierLeague', 'SerieA')
+nationality <- list('German', 'Spanish', list('English', 'Welsh'), 'Italian')
+positions <- c("GK", "D", "M", "F")
+
+national_player <- function(i) {
+  return (football_data %>%
+    filter(League == leagues[i], Nationality %in% nationality[[i]]) %>%
+    group_by(Position) %>%
+    summarise(meanA = mean(Attack), meanD = mean(Defence), n = n()) %>%
+    arrange(meanA, meanD))
+}
+
+foreign_player <- function(i) {
+  return (football_data %>%
+    filter(League == leagues[i], !Nationality %in% nationality[[i]]) %>%
+    group_by(Position) %>%
+    summarise(meanA = mean(Attack), meanD = mean(Defence), n = n()) %>%
+    arrange(meanA, meanD))
+}
+
+#inland
+par(mfrow=c(2, 4))
+for (i in 1:4)  {
+  natp <- national_player(i)
+  natp$Position <- factor(natp$Position, levels(natp$Position)[c(3, 1, 4, 2)])
+  print(natp)
+  forp <- foreign_player(i)
+  forp$Position <- factor(forp$Position, levels(forp$Position)[c(3, 1, 4, 2)])
+  plot(0, 0, xlim=c(1,4), ylim=c(20, 100), xaxt="n", main=leagues[i], xlab="Position", ylab="Attack")
+  axis(1, at=1:4, labels=positions)
+  points(natp$Position, natp$meanA, type="p", pch=20, col="red")
+  points(forp$Position, forp$meanA, type="p", pch=20, col="blue")
+}
+for (i in 1:4)  {
+  natp <- national_player(i)
+  natp$Position <- factor(natp$Position, levels(natp$Position)[c(3, 1, 4, 2)])
+  print(natp)
+  forp <- foreign_player(i)
+  forp$Position <- factor(forp$Position, levels(forp$Position)[c(3, 1, 4, 2)])
+  plot(0, 0, xlim=c(1,4), ylim=c(20, 100), xaxt="n", main=leagues[i], xlab="Position", ylab="Defence")
+  axis(1, at=1:4, labels=positions)
+  points(natp$Position, natp$meanD, type="p", pch=20, col="red")
+  points(forp$Position, forp$meanD, type="p", pch=20, col="blue")
+}
+
+
+```
+
+
+
+
+```{r , warning = FALSE, message = FALSE}
+
+
+
+
+
+
+```
+
+
+
+
+## 3. bullet graph and slope graph
+
+http://motioninsocial.com/tufte/
+https://github.com/leeper/slopegraph
+
+
+```{r , warning = FALSE, message = FALSE}
+
+
+library("slopegraph")
+data(gdp)
+slopegraph(gdp, col.lines = 'gray', col.lab = "black",
+           xlabels = c('1970', '1979'))
+
+par(mfrow=c(2,1), mar=c(1,0,0,8), oma=c(4,1,4,4))
+sparklines <- function(d, i) {
+  plot(d[,i], lwd=0.5, axes=F, ylab="", xlab="", main="", type="l", new=F)
+  axis(4, at=d[nrow(d),i], labels=d[nrow(d),i], tick=F, las=1, line=-1.5,
+       family="serif", cex.axis=1.2)
+  axis(4, at=d[nrow(d),i], labels=names(d[i]), tick=F, line=1.5,
+       family="serif", cex.axis=1.4, las=1)
+  text(which.max(d[,i]), max(d[,i]), labels=max(d[,i]),
+       family="serif", cex=1.2, adj=c(0.5,3))
+  text(which.min(d[,i]), min(d[,i]), labels=min(d[,i]),
+       family="serif", cex=1.2, adj=c(0.5,-2.5))
+  ymin <- min(d[,i])
+  tmin <- which.min(d[,i])
+  ymax<-max(d[,i])
+  tmax<-which.max(d[,i])
+  points(x=c(tmin,tmax), y=c(ymin,ymax), pch=19, col=c("red","blue"), cex=1)
+  rect(0, summary(d[,i])[2], nrow(d), summary(d[,i])[4], border=0,
+       col = rgb(190, 190, 190, alpha=90, maxColorValue=255))
+}
+sparklines(beaver1, 3)
+sparklines(beaver2, 3)
+
+
+
+library(ggplot2)
+
+bullet.graph <- function(bg.data){
+
+  # compute max and half for the ticks and labels
+  max.bg <- max(bg.data$high)
+  mid.bg <- max.bg / 2
+
+  gg <- ggplot(bg.data)
+  gg <- gg + geom_bar(aes(measure, high),  fill="goldenrod2", stat="identity", width=0.5, alpha=0.2)
+  gg <- gg + geom_bar(aes(measure, mean),  fill="goldenrod3", stat="identity", width=0.5, alpha=0.2)
+  gg <- gg + geom_bar(aes(measure, low),   fill="goldenrod4", stat="identity", width=0.5, alpha=0.2)
+  gg <- gg + geom_bar(aes(measure, value), fill="black",  stat="identity", width=0.2)
+  gg <- gg + geom_errorbar(aes(y=target, x=measure, ymin=target, ymax=target), color="red", width=0.45)
+  gg <- gg + geom_point(aes(measure, target), colour="red", size=5)
+  gg <- gg + scale_y_continuous(breaks=seq(0,max.bg,mid.bg))
+  gg <- gg + coord_flip()
+  gg <- gg + theme(axis.text.x=element_text(size=17),
+                   axis.title.x=element_blank(),
+                   axis.line.y=element_blank(),
+                   axis.text.y=element_text(hjust=1, color="black"),
+                   axis.ticks.y=element_blank(),
+                   axis.title.y=element_blank(),
+                   legend.position="none",
+                   panel.background=element_blank(),
+                   panel.border=element_blank(),
+                   panel.grid.major=element_blank(),
+                   panel.grid.minor=element_blank(),
+                   plot.background=element_blank())
+
+  return(gg)
+}
+
+fdf <- football_data %>%
+  group_by(Team) %>%
+  summarise(meanA = mean(Attack), meanD = mean(Defence), n = n())
+fdf
+mean(fdf$meanA)
+
+
+df <- data.frame(
+  measure=c("AC Chievo Verona"),
+  high=c(100),
+  mean=c(mean(football_data$Attack)),
+  low=c(min(fdf$meanA)),
+  target=c(max(fdf$meanA)),
+  value=c(fdf$meanA[fdf$Team=="AC Chievo Verona"])
+)
+
+plot(bullet.graph(df))
+
+df <- data.frame(
+  measure=c("FC Bayern München"),
+  high=c(100),
+  mean=c(mean(football_data$Attack)),
+  low=c(min(fdf$meanA)),
+  target=c(max(fdf$meanA)),
+  value=c(fdf$meanA[fdf$Team=="FC Bayern München"])
+)
+
+plot(bullet.graph(df))
+
+df <- data.frame(
+  measure=c("FC Barcelona"),
+  high=c(100),
+  mean=c(mean(football_data$Attack)),
+  low=c(min(fdf$meanA)),
+  target=c(max(fdf$meanA)),
+  value=c(fdf$meanA[fdf$Team=="FC Barcelona"])
+)
+
+plot(bullet.graph(df))
+
+
+```
