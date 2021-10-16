@@ -1,0 +1,2142 @@
+---
+title: "L3P_user acceptance survey_tabulation and indices"
+author: "EL"
+date: "3 August 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# rm(list = ls())     # used to delete objects from the memory/global environment.       
+
+# installing packages
+# install.packages("knitr")
+# install.packages("readxl")
+# install.packages("haven")
+# install.packages("tidyverse")
+# install.packages("survey")
+# install.packages("ggplot")
+# install.packages("summarytools")
+# install.packages("psych")
+# install.packages("foreign")
+# install.packages("DataExplorer")                          
+# install.packages("kableExtra")           
+# install.packages("stargazer")  
+# install.packages("janitor")
+# install.packages("gtsummary")
+# install.packages("foreign")
+# install.packages("haven")
+
+
+# loading relevant packages
+library(readxl, warn.conflicts = FALSE)
+library(haven, warn.conflicts = FALSE) 
+library(tidyverse, warn.conflicts = FALSE)
+library(survey, warn.conflicts = FALSE)
+library(ggplot2, warn.conflicts = FALSE)
+library(summarytools, warn.conflicts = FALSE)
+library(gtsummary, warn.conflicts = FALSE)
+library(psych)
+library(DataExplorer)
+library(stargazer)
+library(janitor)
+
+```
+
+## Loading the relevant data
+
+```{r data, include=FALSE}
+# setting the working directory
+getwd() #checking the current working directory
+setwd("C:/Users/elli/Documents/R/Rprojects/L3Pilot")  
+
+# loading relevant data sets
+# W1 & W2 data
+L3P <- read_excel("survey_wave1_2_raw.xlsx", sheet = 1)
+save(L3P, file="L3P.Rdata")
+load("L3P.Rdata")                          
+
+# summary
+view(dfSummary(L3P))
+
+# W3 data
+L3W3 <- read_excel("Data_EICT_Survey_Driving_Automation_3rd_Phase_2021.xlsx", sheet = 2)
+save(L3W3, file="L3W3.Rdata")
+load("L3W3.Rdata")    
+
+# summary
+view(dfSummary(L3W3))
+```
+
+## Defining additional Variables
+
+```{r vars, echo=FALSE, include=FALSE}
+
+# country names, so that data is easier to read 
+table(L3P$country)
+L3P$cname <- 0
+L3P$cname[L3P$country==1]  <- "UK"
+L3P$cname[L3P$country==2]  <- "USA"
+L3P$cname[L3P$country==3]  <- "Sweden"
+L3P$cname[L3P$country==4]  <- "Germany"
+L3P$cname[L3P$country==5]  <- "France"
+L3P$cname[L3P$country==6]  <- "China"           # no code 6 in raw data
+L3P$cname[L3P$country==7]  <- "Hungary"
+L3P$cname[L3P$country==8]  <- "Italy"
+L3P$cname[L3P$country==9]  <- "Finland"
+L3P$cname[L3P$country==10] <- "Spain"
+L3P$cname[L3P$country==11] <- "Brazil"
+L3P$cname[L3P$country==12] <- "Indonesia"
+L3P$cname[L3P$country==13] <- "India"
+L3P$cname[L3P$country==14] <- "Japan"
+L3P$cname[L3P$country==15] <- "Russia"
+L3P$cname[L3P$country==16] <- "South Africa"
+L3P$cname[L3P$country==17] <- "Turkey"
+# L3P$cname[L3P$country==18] <- "China"
+cases <- table(L3P$cname)
+write.csv2(cases,"casesW1W2.csv")
+
+L3P$cA2 <- 0
+L3P$cA2[L3P$country==1]  <- "GB"
+L3P$cA2[L3P$country==2]  <- "US"
+L3P$cA2[L3P$country==3]  <- "SE"
+L3P$cA2[L3P$country==4]  <- "DE"
+L3P$cA2[L3P$country==5]  <- "FR"
+L3P$cA2[L3P$country==6]  <- "CN"           
+L3P$cA2[L3P$country==7]  <- "HU"
+L3P$cA2[L3P$country==8]  <- "IT"
+L3P$cA2[L3P$country==9]  <- "FI"
+L3P$cA2[L3P$country==10] <- "ES"
+L3P$cA2[L3P$country==11] <- "BR"
+L3P$cA2[L3P$country==12] <- "ID"
+L3P$cA2[L3P$country==13] <- "IN"
+L3P$cA2[L3P$country==14] <- "JP"
+L3P$cA2[L3P$country==15] <- "RU"
+L3P$cA2[L3P$country==16] <- "ZA"
+L3P$cA2[L3P$country==17] <- "TR"
+
+table(L3P$s1,L3P$age)
+#there seems to be a mistake in the raw data file: age groups are not consistent with variable s1
+
+# new age grouping variable built, based on the group definitions I found in the ppt file
+L3P$cage <- 0
+L3P$cage[L3P$s1>17 & L3P$s1<23] <- "18-22"
+L3P$cage[L3P$s1>22 & L3P$s1<36] <- "23-35"
+L3P$cage[L3P$s1>35 & L3P$s1<56] <- "36-55"
+L3P$cage[L3P$s1>55 & L3P$s1<70] <- "56-69"
+# table(L3P$s1,L3P$cage)
+
+### New Variable: grouping Age in quasi decades
+L3P$decage <- 0
+L3P$decage[L3P$s1>17 & L3P$s1<26] <- "18-25"
+L3P$decage[L3P$s1>25 & L3P$s1<36] <- "26-35"
+L3P$decage[L3P$s1>35 & L3P$s1<46] <- "36-45"
+L3P$decage[L3P$s1>45 & L3P$s1<56] <- "46-55"
+L3P$decage[L3P$s1>55 & L3P$s1<70] <- "56-69"
+# table(L3P$s1,L3P$decage)
+
+
+# gender 
+L3P$gndr <- 0
+L3P$gndr[L3P$s2==1] <- "Male"
+L3P$gndr[L3P$s2==2] <- "Female"
+L3P$gndr[L3P$s2==3] <- "Other"
+
+
+# ENS Typology: enthusiastics neutrals sceptics
+## Score aus Fragen 30 und 43 bilden:
+## Summe aus beiden Fragen und dann durch 2 teilen
+## Einteilung: 1-2 Skeptics  2,5-3,5 Neutrals  4-5 Enthusiastics
+L3P$f16_10 <- dplyr::na_if(L3P$f16_10, 6)
+L3P$f16_23 <- dplyr::na_if(L3P$f16_23, 6)
+
+L3P$ENS_score <- L3P$f16_10 + L3P$f16_23
+L3P$ENS_score <- L3P$ENS_score / 2
+table(L3P$ENS_score)
+
+L3P$ENS <- 0
+L3P$ENS[L3P$ENS_score>=0.5 & L3P$ENS_score<2.5]  <- "Sceptic"
+L3P$ENS[L3P$ENS_score>=2.5 & L3P$ENS_score<=3.5] <- "Neutral"
+L3P$ENS[L3P$ENS_score> 3.5 & L3P$ENS_score<5.5]  <- "Enthusiast"
+# L3P$ENS[L3P$ENS_score==5.5] <- NA
+# L3P$ENS[L3P$ENS_score==6]   <- NA
+L3P$ENS[L3P$ENS==0]           <- NA
+table(L3P$ENS)
+round((prop.table(table(L3P$ENS))*100), 2)
+```
+
+
+
+## Dashboards 
+
+```{r dashboard anylses, echo=TRUE}
+
+# AGE
+t <- prop.table(table(L3P$cage, L3P$cname), 2)
+t <- round((prop.table(t, 2)*100),2)
+t
+write.csv2(t,"country_age.csv")
+
+
+# GENDER
+g <- prop.table(table(L3P$gndr, L3P$cname), 2)
+g <- round((prop.table(g, 2)*100),2)
+g
+write.csv2(g,"gender_across all countries.csv")
+
+
+# AGE GENDER (quasi-decades)
+t2 <- L3P %>%
+  tabyl(cname, decage, gndr) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title("top", row_name = "country", col_name = "Age (grouped)")
+t2
+write.csv2(t2,"crosstab_age_gndr_across countries.csv")
+
+
+# INCOME
+i <- table(L3P$cname, L3P$s3, useNA="always")
+i
+ii <- prop.table(table(L3P$cname,L3P$s3), margin = 1)
+ii <- round((prop.table(ii, 1)*100),2)
+ii
+write.csv2(ii,"income.csv")
+
+iii <- round((prop.table(table(L3P$cname, L3P$s3), 1)*100), 2)
+iii
+# income for different countries need to be clarified
+
+FL <- read_excel("dataFL.xlsx", sheet = 1)
+save(FL, file="FL.Rdata")
+# FL$PT120 <- dplyr::na_if(FL$PT120, 11)
+iii <- round((prop.table(table(FL$PT120))*100), 2)
+iii
+write.csv2(iii,"income_FL_original2.csv")
+
+
+# ENS Typology
+e <- prop.table(table(L3P$ENS, L3P$cname), 2)
+e <- round((prop.table(e, 2)*100),2)
+e
+write.csv2(e,"Countries_ENS overview.csv")
+save(e, file="ENS.Rdata")
+
+tab <- round((prop.table(table(L3P$cname, L3P$ENS), 1)*100), 2)
+tab
+write.csv2(tab,"Countries_ENS overview_TURNED.csv")
+
+
+tab <- L3P %>%
+  tabyl(cname, ENS, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "ENS")
+tab
+write.csv2(tab,"ENS_PROP&ABS_across all countries.csv")
+
+tab <- L3P %>%
+  tabyl(ENS, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 3) %>%
+  adorn_ns()
+tab
+
+
+# F11: AWARENESS
+tab <- prop.table(table(L3P$f11, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f11_awareness_across all countries.csv")
+
+round((prop.table(table(L3P$f11))*100), 2)    
+tab <- round((prop.table(table(L3P$cname, L3P$f11), 1)*100), 2)
+tab
+write.csv2(tab,"f11_awareness_across all countrie_TURNED.csv")
+
+
+# Willingness to engage in activities: f14
+L3P$f14 <- dplyr::na_if(L3P$f14, 6)
+# tab <- prop.table(table(L3P$f14, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+round((prop.table(table(L3P$f14))*100), 2)
+will <- round((prop.table(table(L3P$cname, L3P$f14), 1)*100), 2)
+will
+write.csv2(will,"f14_willingness to engange in activities_across all countries.csv") 
+
+table(L3P$f14)
+L3P$f14n[L3P$f14==1]  <- "Disagree"
+L3P$f14n[L3P$f14==2]  <- "Disagree"
+L3P$f14n[L3P$f14==3]  <- "Neutral"
+L3P$f14n[L3P$f14==4]  <- "Agree"
+L3P$f14n[L3P$f14==5]  <- "Agree"
+L3P$f14n[L3P$f14==6]  <- NA
+# L3P$f14n[L3P$f14n==0] <- NA
+table(L3P$f14n)
+
+round((prop.table(table(L3P$f14n))*100), 2)
+will <- round((prop.table(table(L3P$cA2, L3P$f14n), 1)*100), 2)
+will
+write.csv2(will,"f14n_willingness to engange in activities_across all countries.csv") 
+
+
+# f14b_1  Taking care of children 
+round((prop.table(table(L3P$f14b_1))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_1, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b1_taking care of children_across all countries.csv")
+
+
+# f14b_2  Talking to my fellow travelers 
+round((prop.table(table(L3P$f14b_2))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_2, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b2_Talking to fellow travelers_across all countries.csv")
+
+
+# f14b_3  Surfing the internet, watching videos or TV shows
+round((prop.table(table(L3P$f14b_3))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_3, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b3_Surfing the internet_across all countries.csv")
+
+
+# f14b_4  Playing games (e.g., video or board games) 
+# "." needs to be explained in documentation
+L3P$f14b_4 <- dplyr::na_if(L3P$f14b_4, ".")
+round((prop.table(table(L3P$f14b_4))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_4, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b4_Playing games_across all countries.csv")
+
+
+# f14b_5  Socializing with friends or family (write messages, phone calls, social media) 
+L3P$f14b_5 <- dplyr::na_if(L3P$f14b_5, ".")
+round((prop.table(table(L3P$f14b_5))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_5, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b5_Socializing with friends_across all countries.csv")
+
+
+# f14b_6  Eating and drinking 
+L3P$f14b_6 <- dplyr::na_if(L3P$f14b_6, ".")
+round((prop.table(table(L3P$f14b_6))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_6, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b6_Eating and drinking_across all countries.csv")
+
+
+# f14b_7  Observing the landscape  
+L3P$f14b_7 <- dplyr::na_if(L3P$f14b_7, ".")
+round((prop.table(table(L3P$f14b_7))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_7, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b7_Observing the landscape_across all countries.csv")
+
+
+# f14b_8  Relaxing and resting 
+L3P$f14b_8 <- dplyr::na_if(L3P$f14b_8, ".")
+round((prop.table(table(L3P$f14b_8))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_8, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b8_Relaxing and resting_across all countries.csv")
+
+
+# f14b_9  Reading a book 
+L3P$f14b_9 <- dplyr::na_if(L3P$f14b_9, ".")
+round((prop.table(table(L3P$f14b_9))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_9, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b9_Reading a book_across all countries.csv")
+
+
+# f14b_10 Working (e.g., make phone calls, or write emails) 
+L3P$f14b_10 <- dplyr::na_if(L3P$f14b_10, ".")
+round((prop.table(table(L3P$f14b_10))*100), 2)       #Overall
+tab <- prop.table(table(L3P$f14b_10, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f14b10_Working_across all countries.csv")
+
+
+# activities overall comparing different mobility modes per country
+f14var <- c("f14b_1","f14b_2","f14b_3","f14b_4","f14b_5","f14b_6","f14b_7","f14b_8","f14b_9","f14b_10")
+
+act <- apply(L3P[f14var],2,table)
+act
+
+ACT <- prop.table(act, 2)
+ACT <- round((prop.table(act, 2)*100),2)
+ACT
+write.csv2(ACT,"Activities_overall.csv")
+
+
+# Experience with ADAS
+
+# f25_1 Automated Emergency Braking (AEB)
+L3P$f25_1 <- dplyr::na_if(L3P$f25_1, 6)
+tab <- prop.table(table(L3P$f25_1, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_1_AEB_across all countries.csv")
+
+L3P$f25_1n[L3P$f25_1==1]  <- "I have it and I use it"
+L3P$f25_1n[L3P$f25_1==2]  <- "I have it but I don’t use it"
+L3P$f25_1n[L3P$f25_1==3]  <- "Don’t know if I have it"
+L3P$f25_1n[L3P$f25_1==4]  <- "I don’t have it but I would use it"
+L3P$f25_1n[L3P$f25_1==5]  <- "I don’t have it and I would not use it"
+L3P$f25_1n[L3P$f25_1==6]  <- NA
+table(L3P$f25_1n)
+
+# OVERALL
+AEBo <- round((prop.table(table(L3P$f25_1n))*100), 2)
+AEBo
+AEB <- round((prop.table(table(L3P$cA2, L3P$f25_1n), 1)*100), 2)
+AEB
+write.csv2(AEB,"f25_ADAS_AEB_across all countries_WO NA.csv") 
+write.csv2(AEBo,"f25_ADAS_AEBo_across all countries_WO NA.csv") 
+
+
+# f25_2 Forward Collision Warning (FCW)
+L3P$f25_2 <- dplyr::na_if(L3P$f25_2, 6)
+tab <- prop.table(table(L3P$f25_2, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_2_FCW_across all countries.csv")
+
+L3P$f25_2n[L3P$f25_2==1]  <- "I have it and I use it"
+L3P$f25_2n[L3P$f25_2==2]  <- "I have it but I don’t use it"
+L3P$f25_2n[L3P$f25_2==3]  <- "Don’t know if I have it"
+L3P$f25_2n[L3P$f25_2==4]  <- "I don’t have it but I would use it"
+L3P$f25_2n[L3P$f25_2==5]  <- "I don’t have it and I would not use it"
+L3P$f25_2n[L3P$f25_2==6]  <- NA
+table(L3P$f25_2n)
+
+# OVERALL
+FCWo <- round((prop.table(table(L3P$f25_2n))*100), 2)
+FCWo
+FCW <- round((prop.table(table(L3P$cA2, L3P$f25_2n), 1)*100), 2)
+FCW
+write.csv2(FCW,"f25_ADAS_FCW_across all countries_WO NA.csv") 
+write.csv2(FCWo,"f25_ADAS_FCWo_across all countries_WO NA.csv") 
+
+
+# f25_3 Blind Spot Monitoring (BSM)
+L3P$f25_3 <- dplyr::na_if(L3P$f25_3, 6)
+tab <- prop.table(table(L3P$f25_3, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_3_BSM_across all countries.csv")
+
+L3P$f25_3n[L3P$f25_3==1]  <- "I have it and I use it"
+L3P$f25_3n[L3P$f25_3==2]  <- "I have it but I don’t use it"
+L3P$f25_3n[L3P$f25_3==3]  <- "Don’t know if I have it"
+L3P$f25_3n[L3P$f25_3==4]  <- "I don’t have it but I would use it"
+L3P$f25_3n[L3P$f25_3==5]  <- "I don’t have it and I would not use it"
+L3P$f25_3n[L3P$f25_3==6]  <- NA
+table(L3P$f25_3n)
+
+# OVERALL
+BSMo <- round((prop.table(table(L3P$f25_3n))*100), 2)
+BSMo
+BSM <- round((prop.table(table(L3P$cA2, L3P$f25_3n), 1)*100), 2)
+BSM
+write.csv2(BSM,"f25_ADAS_BSM_across all countries_WO NA.csv") 
+write.csv2(BSMo,"f25_ADAS_BSMo_across all countries_WO NA.csv") 
+
+
+# f25_4 Drowsy Driver Detection (DDD)
+L3P$f25_4 <- dplyr::na_if(L3P$f25_4, 6)
+tab <- prop.table(table(L3P$f25_4, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_4_DDD_across all countries.csv")
+
+L3P$f25_4n[L3P$f25_4==1]  <- "I have it and I use it"
+L3P$f25_4n[L3P$f25_4==2]  <- "I have it but I don’t use it"
+L3P$f25_4n[L3P$f25_4==3]  <- "Don’t know if I have it"
+L3P$f25_4n[L3P$f25_4==4]  <- "I don’t have it but I would use it"
+L3P$f25_4n[L3P$f25_4==5]  <- "I don’t have it and I would not use it"
+L3P$f25_4n[L3P$f25_4==6]  <- NA
+table(L3P$f25_4n)
+
+# OVERALL
+DDDo <- round((prop.table(table(L3P$f25_4n))*100), 2)
+DDDo
+DDD <- round((prop.table(table(L3P$cA2, L3P$f25_4n), 1)*100), 2)
+DDD
+write.csv2(DDD,"f25_ADAS_DDD_across all countries_WO NA.csv") 
+write.csv2(DDDo,"f25_ADAS_DDDo_across all countries_WO NA.csv") 
+
+# f25_5 Lane Departure Warning (LDW)	
+L3P$f25_5 <- dplyr::na_if(L3P$f25_5, 6)
+tab <- prop.table(table(L3P$f25_5, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_5_LDW_across all countries.csv")
+
+L3P$f25_5n[L3P$f25_5==1]  <- "I have it and I use it"
+L3P$f25_5n[L3P$f25_5==2]  <- "I have it but I don’t use it"
+L3P$f25_5n[L3P$f25_5==3]  <- "Don’t know if I have it"
+L3P$f25_5n[L3P$f25_5==4]  <- "I don’t have it but I would use it"
+L3P$f25_5n[L3P$f25_5==5]  <- "I don’t have it and I would not use it"
+L3P$f25_5n[L3P$f25_5==6]  <- NA
+table(L3P$f25_5n)
+
+# OVERALL
+LDWo <- round((prop.table(table(L3P$f25_5n))*100), 2)
+LDWo
+LDW <- round((prop.table(table(L3P$cA2, L3P$f25_5n), 1)*100), 2)
+LDW
+write.csv2(LDW,"f25_ADAS_LDW_across all countries_WO NA.csv") 
+write.csv2(LDWo,"f25_ADAS_LDWo_across all countries_WO NA.csv") 
+
+#f25_6 Lane Keeping Assistance (LKA) 
+L3P$f25_6 <- dplyr::na_if(L3P$f25_6, 6)
+tab <- prop.table(table(L3P$f25_6, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_6_LKA_across all countries.csv")
+
+L3P$f25_6n[L3P$f25_6==1]  <- "I have it and I use it"
+L3P$f25_6n[L3P$f25_6==2]  <- "I have it but I don’t use it"
+L3P$f25_6n[L3P$f25_6==3]  <- "Don’t know if I have it"
+L3P$f25_6n[L3P$f25_6==4]  <- "I don’t have it but I would use it"
+L3P$f25_6n[L3P$f25_6==5]  <- "I don’t have it and I would not use it"
+L3P$f25_6n[L3P$f25_6==6]  <- NA
+table(L3P$f25_6n)
+
+# OVERALL
+LKAo <- round((prop.table(table(L3P$f25_6n))*100), 2)
+LKA <- round((prop.table(table(L3P$cA2, L3P$f25_6n), 1)*100), 2)
+LKA
+LKAo
+write.csv2(LKA,"f25_ADAS_LKA_across all countries_WO NA.csv") 
+write.csv2(LKAo,"f25_ADAS_LKAo_across all countries_WO NA.csv") 
+
+
+#f25_7 Adaptive Cruise Control (ACC)
+L3P$f25_7 <- dplyr::na_if(L3P$f25_7, 6)
+tab <- prop.table(table(L3P$f25_7, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_7_ACC_across all countries.csv")
+
+
+L3P$f25_7n[L3P$f25_7==1]  <- "I have it and I use it"
+L3P$f25_7n[L3P$f25_7==2]  <- "I have it but I don’t use it"
+L3P$f25_7n[L3P$f25_7==3]  <- "Don’t know if I have it"
+L3P$f25_7n[L3P$f25_7==4]  <- "I don’t have it but I would use it"
+L3P$f25_7n[L3P$f25_7==5]  <- "I don’t have it and I would not use it"
+L3P$f25_7n[L3P$f25_7==6]  <- NA
+table(L3P$f25_7n)
+
+# OVERALL
+ACCo <- round((prop.table(table(L3P$f25_7n))*100), 2)
+ACC <- round((prop.table(table(L3P$cA2, L3P$f25_7n), 1)*100), 2)
+ACC
+write.csv2(ACC,"f25_ADAS_ACC_across all countries_WO NA.csv") 
+write.csv2(ACCo,"f25_ADAS_ACCo_across all countries_WO NA.csv") 
+
+# f25_8 Parking Assist (Radar - beeps or camera view)
+L3P$f25_8 <- dplyr::na_if(L3P$f25_8, 6)
+tab <- prop.table(table(L3P$f25_8, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_8_PA_across all countries.csv")
+
+
+L3P$f25_8n[L3P$f25_8==1]  <- "I have it and I use it"
+L3P$f25_8n[L3P$f25_8==2]  <- "I have it but I don’t use it"
+L3P$f25_8n[L3P$f25_8==3]  <- "Don’t know if I have it"
+L3P$f25_8n[L3P$f25_8==4]  <- "I don’t have it but I would use it"
+L3P$f25_8n[L3P$f25_8==5]  <- "I don’t have it and I would not use it"
+L3P$f25_8n[L3P$f25_8==6]  <- NA
+table(L3P$f25_8n)
+
+# OVERALL
+PAo <- round((prop.table(table(L3P$f25_8n))*100), 2)
+PA <- round((prop.table(table(L3P$cA2, L3P$f25_8n), 1)*100), 2)
+PAo
+PA
+write.csv2(PA,"f25_ADAS_PA_across all countries_WO NA.csv") 
+write.csv2(PAo,"f25_ADAS_PAo_across all countries_WO NA.csv") 
+
+# f25_9 Self-parking Assist System 
+L3P$f25_9 <- dplyr::na_if(L3P$f25_9, 6)
+tab <- prop.table(table(L3P$f25_9, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f25_9_SPS_across all countries.csv")
+
+L3P$f25_9n[L3P$f25_9==1]  <- "I have it and I use it"
+L3P$f25_9n[L3P$f25_9==2]  <- "I have it but I don’t use it"
+L3P$f25_9n[L3P$f25_9==3]  <- "Don’t know if I have it"
+L3P$f25_9n[L3P$f25_9==4]  <- "I don’t have it but I would use it"
+L3P$f25_9n[L3P$f25_9==5]  <- "I don’t have it and I would not use it"
+L3P$f25_9n[L3P$f25_9==6]  <- NA
+table(L3P$f25_9n)
+
+# OVERALL
+SPSo <- round((prop.table(table(L3P$f25_9n))*100), 2)
+SPSo
+SPS <- round((prop.table(table(L3P$cA2, L3P$f25_9n), 1)*100), 2)
+SPS
+write.csv2(SPS,"f25_ADAS_SPS_across all countries_WO NA.csv") 
+write.csv2(SPSo,"f25_ADAS_SPSo_across all countries_WO NA.csv") 
+
+f25var <- c("f25_1","f25_2","f25_3","f25_4","f25_5","f25_6","f25_7","f25_8","f25_9")
+adas <- apply(L3P[f25var],2,table)
+adas
+
+ADAS <- prop.table(adas, 2)
+ADAS <- round((prop.table(adas, 2)*100),0)
+ADAS
+write.csv2(ADAS,"ADAS_overall.csv")
+
+# f26 How often do you purchase or change your car?
+L3P$f26 <- dplyr::na_if(L3P$f26, 7)
+puro <- round((prop.table(table(L3P$f26))*100), 2)
+puro
+pur <- round((prop.table(table(L3P$cA2, L3P$f26), 1)*100), 2)
+pur
+write.csv2(pur,"f26_across all countries_WO NA.csv") 
+write.csv2(puro,"f26_across all countries_WO NA.csv") 
+
+	# 1 "Every year"
+	# 2 "2-5 years"
+	# 3 "6-10 years"
+	# 4 "> 10 years"
+	# 5 "Not sure, no clear habits"
+	# 6 "Not relevant to me"
+	# 7 "I prefer not to respond"
+
+# f26 How often do you purchase or change your car?
+L3P$f26 <- dplyr::na_if(L3P$f26, 7)
+puro <- round((prop.table(table(L3P$f26))*100), 2)
+puro
+pur <- round((prop.table(table(L3P$cA2, L3P$f26), 1)*100), 2)
+pur
+write.csv2(pur,"f26_across all countries_WO NA.csv") 
+write.csv2(puro,"f26_across all countries_WO NA.csv") 
+
+
+# f27 "f27: What will your next car be?" /	
+
+#   1 "Company purchased car"
+# 	2 "Own car, leased"
+# 	3 "Own car, financed or directly paid"
+# 	4 "Car sharing car"
+# 	5 "I don’t know yet"
+# 	6 "I prefer not to respond"
+
+L3P$f27 <- dplyr::na_if(L3P$f27, 6)
+NCo <- round((prop.table(table(L3P$f27))*100), 2)
+NCo
+NC <- round((prop.table(table(L3P$cA2, L3P$f27), 1)*100), 2)
+NC
+write.csv2(NC,"f27_across all countries_WO NA.csv") 
+write.csv2(NCo,"f27_across all countries_WO NA.csv") 
+
+
+#Intention to use
+round((prop.table(table(L3P$f16_10))*100), 2)
+
+tab <- prop.table(table(L3P$f16_10, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f16_10_intend to use_across all countries.csv")
+
+L3P$f16_10 <- dplyr::na_if(L3P$f16_10, 6)   # setting cat 6 don't know to NA
+tab <- round((prop.table(table(L3P$cname, L3P$f16_10), 1)*100), 2)
+tab
+write.csv2(tab,"f16_10_intend to use_across all countries_WO NA_TURNED.csv")
+
+L3P$f16_10n[L3P$f16_10==1]  <- "Disagree"
+L3P$f16_10n[L3P$f16_10==2]  <- "Disagree"
+L3P$f16_10n[L3P$f16_10==3]  <- "Neutral"
+L3P$f16_10n[L3P$f16_10==4]  <- "Agree"
+L3P$f16_10n[L3P$f16_10==5]  <- "Agree"
+L3P$f16_10n[L3P$f16_10==6]  <- NA
+table(L3P$f16_10n)
+
+# INTEND TO USE OVERALL
+round((prop.table(table(L3P$f16_10n))*100), 2)
+use <- round((prop.table(table(L3P$cA2, L3P$f16_10n), 1)*100), 2)
+use
+write.csv2(use,"f16_10n_intend to use_across all countries_WO NA_3cat.csv") 
+
+
+# calculating the mean of intention to use across countries
+Muse <- L3P %>% group_by(cname) %>% summarise(meanf16_10 = mean(f16_10,na.rm=T))
+Muse
+
+
+
+#Plan to buy
+round((prop.table(table(L3P$f16_23))*100), 2)
+
+tab <- prop.table(table(L3P$f16_23, L3P$cname), 2)
+tab <- round((prop.table(tab, 2)*100),2)
+tab
+write.csv2(tab,"f16_23_plan to buy_across all countries.csv")
+
+L3P$f16_23 <- dplyr::na_if(L3P$f16_23, 6)
+tab <- round((prop.table(table(L3P$cname, L3P$f16_23), 1)*100), 2)
+tab
+write.csv2(tab,"f16_23_plan to buy_across all countries_WO NA_TURNED.csv")
+
+L3P$f16_23n[L3P$f16_23==1]  <- "Disagree"
+L3P$f16_23n[L3P$f16_23==2]  <- "Disagree"
+L3P$f16_23n[L3P$f16_23==3]  <- "Neutral"
+L3P$f16_23n[L3P$f16_23==4]  <- "Agree"
+L3P$f16_23n[L3P$f16_23==5]  <- "Agree"
+L3P$f16_23n[L3P$f16_23==6]  <- NA
+# L3P$f16_23n[L3P$f16_23] <- NA
+table(L3P$f16_23n)
+
+# PLAN TO BUY OVERALL
+round((prop.table(table(L3P$f16_23n))*100), 2)
+buy <- round((prop.table(table(L3P$cA2, L3P$f16_23n), 1)*100), 2)
+buy
+write.csv2(buy,"f16_23n_plan to buy_across all countries_WO NA_3cat.csv") 
+
+# calculating the mean of plan to buy across countries
+Mbuy <- L3P %>% group_by(cname) %>% summarise(meanf16_23 = mean(f16_23,na.rm=T))
+Mbuy
+
+
+# Level 3 functions ("knowledge"/recall from introduction(comprehension))
+# f6: lane keeping
+round((prop.table(table(L3P$f6))*100), 2)
+tab <- round((prop.table(table(L3P$cname, L3P$f6), 1)*100), 2)
+tab
+write.csv2(tab,"f6_lane keeping_across all countries_TURNED.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f6, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "lane keeping")
+tab
+write.csv2(tab,"f6_lane keeping_PROP&ABS_across all countries.csv")
+
+
+#f7: Overtaking
+round((prop.table(table(L3P$f7))*100), 2)
+tab <- round((prop.table(table(L3P$cname, L3P$f7), 1)*100), 2)
+tab
+write.csv2(tab,"f7_overtaking_across all countries_TURNED.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f7, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "overtaking")
+tab
+write.csv2(tab,"f7_overtaking_PROP&ABS_across all countries.csv")
+
+
+#f8: Operation in all conditions
+round((prop.table(table(L3P$f8))*100), 2)
+tab <- round((prop.table(table(L3P$cname, L3P$f8), 1)*100), 2)
+tab
+write.csv2(tab,"f8_Op in all conditions_across all countries_TURNED.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f8, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "Op in all conditions")
+tab
+write.csv2(tab,"f8_Op in all conditions_PROP&ABS_across all countries.csv")
+
+
+#f9: Asking human drivers to overtake
+round((prop.table(table(L3P$f9))*100), 2)
+tab <- round((prop.table(table(L3P$cname, L3P$f9), 1)*100), 2)
+tab
+write.csv2(tab,"f9_Ask drivers to overtake_across all countries_TURNED.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f9, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "Ask drivers to overtake")
+tab
+write.csv2(tab,"f9_Ask drivers to overtake_PROP&ABS_across all countries.csv")
+
+
+#f10: Pursuing other activities except for sleeping
+round((prop.table(table(L3P$f10))*100), 2)
+tab <- round((prop.table(table(L3P$cname, L3P$f10), 1)*100), 2)
+tab
+write.csv2(tab,"f10_Pursuing other activities_across all countries_TURNED.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f10, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "Pursuing other activities")
+tab
+write.csv2(tab,"f10_Pursuing other activities_PROP&ABS_across all countries.csv")
+
+
+
+#Expected benefits (f21_1-f21_4)
+#Exclude missing values "6"
+L3P$f21_1 <- dplyr::na_if(L3P$f21_1, 6)
+L3P$f21_2 <- dplyr::na_if(L3P$f21_2, 6)
+L3P$f21_3 <- dplyr::na_if(L3P$f21_3, 6)
+L3P$f21_4 <- dplyr::na_if(L3P$f21_4, 6)
+
+# Expected benefits: Productive use of travel time
+round((prop.table(table(L3P$f21_1))*100), 2)
+tab <- table(L3P$f21_1, L3P$country)
+# write.csv2(tab,"f21_1_benefits_prod use of travel time_ABSOLUT_across all countries.csv")
+
+tab <- round((prop.table(table(L3P$cname, L3P$f21_1), 1)*100), 2)
+tab
+write.csv2(tab,"f21_1_benefits_prod use of travel time_across all countries.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f21_1, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns()%>%
+  adorn_title("top", row_name = "country", col_name = "f21_1 prod use of travel time")
+tab
+write.csv2(tab,"f21_1_benefits_prod use of travel time_PROP&ABS_across all countries_WO NA.csv")
+
+# Expected benefits: Comfort
+round((prop.table(table(L3P$f21_2))*100), 2)
+tab <- table(L3P$cname, L3P$f21_2)
+# write.csv2(tab,"f21_2_benefits_comfort_ABSOLUT_across all countries.csv")
+
+tab <- round((prop.table(table(L3P$cname, L3P$f21_2), 1)*100), 2)
+tab
+write.csv2(tab,"f21_2_benefits_comfort_across all countries.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f21_2, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title("top", row_name = "country", col_name = "f21_2 comfort")
+tab
+write.csv2(tab,"f21_2_benefits_comfort_PROP&ABS_across all countries_WO NA.csv")
+
+
+# Expected benefits: Number of accidents
+round((prop.table(table(L3P$f21_3))*100), 2)
+tab <- table(L3P$cname, L3P$f21_3)
+tab
+# write.csv2(tab,"f21_3_benefits_number of accidents_ABSOLUT_across all countries.csv")
+
+tab <- round((prop.table(table(L3P$cname, L3P$f21_3), 1)*100), 2)
+tab
+write.csv2(tab,"f21_3_benefits_number of accidents_across all countries.csv")
+
+tab <- L3P %>%
+  tabyl(cname, f21_3, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title("top", row_name = "country", col_name = "f21_3 no. of accidents")
+tab
+write.csv2(tab,"f21_3_benefits_number of accidents_PROP&ABS_across all countries_WO NA.csv")
+
+# Expected benefits: traffic congestion
+round((prop.table(table(L3P$f21_4))*100), 2)
+tab <- table(L3P$cname, L3P$f21_4)
+tab
+# write.csv2(tab,"f21_4_benefits_traffic congestion_ABSOLUT_across all countries.csv")
+
+tab <- round((prop.table(table(L3P$cname, L3P$f21_4), 1)*100), 2)
+tab
+write.csv2(tab,"f21_4_benefits_traffic congestion_across all countries.csv") 
+
+tab <- L3P %>%
+  tabyl(cname, f21_4, show_na = FALSE) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title("top", row_name = "country", col_name = "f21_4 traffic congestion")
+tab
+write.csv2(tab,"f21_4_benefits_traffic congestion_PROP&ABS_across all countries_WO NA.csv")
+
+
+# Information consumption
+# f12_1 + f12_2 müssen zusammengezogen werden (online und webseite, social media)
+# F12_3, f12_4, f12_5, f12_6 getrennt 
+
+x <- round((prop.table(table(L3P$f12_1))*100), 2)
+y <- round((prop.table(table(L3P$f12_2))*100), 2)
+z <- round((prop.table(table(L3P$f12_3))*100), 2)
+o <- round((prop.table(table(L3P$f12_4))*100), 2)
+q <- round((prop.table(table(L3P$f12_6))*100), 2)
+
+# Kombination f12_1 nd f12_2
+f12_12 <- (x+y)/2
+f12_12
+
+# Kombination f12_3 nd f12_6
+f12_36 <- (z+q)/2
+f12_36
+
+x <- round((prop.table(table(L3P$cname, L3P$f12_1), 1)*100), 2)
+# tab <- prop.table(table(L3P$f12_1, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+write.csv2(x,"f12_1_Information_across all countries.csv") 
+
+y <- round((prop.table(table(L3P$cname, L3P$f12_2), 1)*100), 2)
+# tab <- prop.table(table(L3P$f12_2, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+write.csv2(y,"f12_2_Information_across all countries.csv") 
+
+# Kombination f12_1 nd f12_2
+f12_12 <- (x+y)/2
+f12_12
+write.csv2(f12_12,"f12_12_Information_across all countries.csv") 
+
+
+z <- round((prop.table(table(L3P$cname, L3P$f12_3), 1)*100), 2)
+# tab <- prop.table(table(L3P$f12_3, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+write.csv2(z,"f12_3_Information_across all countries.csv")
+
+o <- round((prop.table(table(L3P$cname, L3P$f12_4), 1)*100), 2)
+# tab <- prop.table(table(L3P$f12_4, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+write.csv2(o,"f12_4_Information_across all countries.csv")
+
+p <- round((prop.table(table(L3P$cname, L3P$f12_5), 1)*100), 2)
+# tab <- prop.table(table(L3P$f12_5, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+write.csv2(p,"f12_5_Information_across all countries.csv") 
+
+q <- round((prop.table(table(L3P$cname, L3P$f12_6), 1)*100), 2)
+# tab <- prop.table(table(L3P$f12_6, L3P$cname), 2)
+# tab <- round((prop.table(tab, 2)*100),2)
+# tab
+write.csv2(q,"f12_6_Information_across all countries.csv") 
+
+# Combination f12_3 nd f12_6
+f12_36 <- (z+q)/2
+f12_36
+write.csv2(f12_36,"f12_36_Information_across all countries.csv") 
+
+
+
+#A - mobility modes - overall
+
+s4vars <- c("s4_1","s4_2","s4_3","s4_4","s4_5","s4_6","s4_7","s4_8","s4_9","s4_10")
+L3P <- L3P %>% mutate_at(all_of(s4vars), ~replace(.,.==7, NA))
+
+# dat <- L3P[L3P$cname=="Germany",]
+a <- apply(L3P[s4vars],2,table)         # calling dat
+a
+
+A <- prop.table(a,2)
+A <- round((prop.table(A, 2)*100),2)
+A
+write.csv2(A,"Mobility_OVERALL.csv")
+
+colnames(A) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+rownames(A) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+A
+write.csv2(A,"Mobility_OVERALL.csv")
+knitr::kable(A, digits = 2)
+
+# different mobility modes for all countries (focus one mode)    NEEDS TO BE TURNED!!!!
+
+q <- table(L3P$s4_5, L3P$cname, useNA="always")    #"private car driver",
+q2 <- prop.table(table(L3P$s4_5, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+rownames(q2) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+q2
+write.csv2(q2,"Mobility_Mode_privateCarDriver_all countries.csv")
+
+
+
+q <- table(L3P$s4_6,L3P$cname,useNA="always")    #"rental/shared car driver",
+q2 <- prop.table(table(L3P$s4_6, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+rownames(q2) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+q2
+write.csv2(q2,"Mobility_Mode_rentedSharedCar_all countries.csv")
+
+
+q <- table(L3P$s4_7,L3P$cname,useNA="always")    #"car passenger",
+q2 <- prop.table(table(L3P$s4_7, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+rownames(q2) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+q2
+write.csv2(q2,"Mobility_Mode_carPassenger_all countries.csv")
+
+
+q <- table(L3P$s4_8,L3P$cname,useNA="always")    #"public transport max 50km",
+q2 <- prop.table(table(L3P$s4_8, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+rownames(q2) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+q2
+write.csv2(q2,"Mobility_Mode_pubTrans50km_all countries.csv")
+
+
+q <- table(L3P$s4_9,L3P$cname,useNA="always")    #"public transport 50km or more",
+q2 <- prop.table(table(L3P$s4_9, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+rownames(q2) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+q2
+write.csv2(q2,"Mobility_Mode_pubTransMorethan50km_all countries.csv")
+
+
+q <- table(L3P$s4_10,L3P$cname,useNA="always")    #"airplane"
+q2 <- prop.table(table(L3P$s4_10, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+rownames(q2) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+q2
+write.csv2(q2,"Mobility_Mode_airplane_all countries.csv")
+
+
+# SIC SINA ORIGINAL
+# prop.table(table(Data_EICT_Survey_Driving_Automation_Wave2_ES$f12_1))*100
+# prop.table(table(Data_EICT_Survey_Driving_Automation_Wave2_ES$f12_2))*100
+# prop.table(table(Data_EICT_Survey_Driving_Automation_Wave2_ES$f12_3))*100
+# prop.table(table(Data_EICT_Survey_Driving_Automation_Wave2_ES$f12_4))*100
+# prop.table(table(Data_EICT_Survey_Driving_Automation_Wave2_ES$f12_5))*100
+# prop.table(table(Data_EICT_Survey_Driving_Automation_Wave2_ES$f12_6))*100
+# table(survey_wave1_2.csv$f21_1, survey_wave1_2.csv$country)
+# table(survey_wave1_2.csv$f21_2, survey_wave1_2.csv$country)
+# table(survey_wave1_2.csv$f21_3, survey_wave1_2.csv$country)
+# table(survey_wave1_2.csv$f21_4, survey_wave1_2.csv$country)
+
+```
+
+
+```{r descriptive stats}
+vars <- c("s1", "s2", "s3", "s4_1","s4_2","s4_3","s4_4","s4_5","s4_6","s4_7","s4_8","s4_9","s4_10","f16_10", "f16_23", "f12_1", "f12_2", "f12_3", "f12_4", "f12_5", "f12_6","f13_1", "f13_2", "f13_3", "f13_4","f14", "f15_1", "f15_2", "f15_3")    
+
+#FURTHER VARIABLES NEED TO BE ADDED "f6", "f7", "f8", "f9", "f10","f11"
+nL <- L3P[vars]  
+ov <- descr(nL, style = 'rmarkdown')
+print(ov, digits = 2)                                 #prints out a table of product moments
+freq(nL, plain.ascii = FALSE, style = "rmarkdown") 
+
+# a colour-coded correlation matrix
+library(DataExplorer)
+plot_correlation(
+  nL,
+  ggtheme = theme_minimal(),
+  cor_args = list("use" = "pairwise.complete.obs")
+)
+
+```
+
+## Zeitvergleiche W1/W2 - W3
+
+```{r getting into W3 data}
+
+# country		
+# 	1	us
+# 	2	uk
+# 	3	fr
+# 	4	hu
+# 	5	de
+# 	6	cn
+# 	7	br
+# 	8	jp
+# 	9	ru
+
+L3W3$cname <- 0
+L3W3$cname[L3W3$country==1]  <- "USA US"
+L3W3$cname[L3W3$country==2]  <- "UK GB"
+L3W3$cname[L3W3$country==3]  <- "France FR"
+L3W3$cname[L3W3$country==4]  <- "Hungary HU"
+L3W3$cname[L3W3$country==5]  <- "Germany DE"
+L3W3$cname[L3W3$country==6]  <- "China CN"          
+L3W3$cname[L3W3$country==7]  <- "Brazil BR"
+L3W3$cname[L3W3$country==8]  <- "Japan JP"
+L3W3$cname[L3W3$country==9]  <- "Russia RU"
+
+cases <- table(L3W3$cname)
+cases
+write.csv2(cases,"casesW3.csv")
+
+# 	q10: Have you ever heard of automated vehicles or driverless cars?
+#   1	Yes
+#   2	No
+
+round((prop.table(table(L3W3$q10))*100), 2)       #Overall
+tab <-round((prop.table(table(L3W3$q10, L3W3$country), 2)*100), 2)  
+tab
+write.csv2(tab,"w3_q10_awareness of automated vehicles_across countries.csv")
+
+
+# 	q12.5: I plan to use a conditionally automated car once it becomes available 
+# 	1 Strongly disagree
+# 	2 Disagree	
+# 	3 Neutral	
+# 	4 Agree	
+# 	5 Strongly agree
+
+round((prop.table(table(L3W3$q12.5))*100), 2)       #Overall
+tab <-round((prop.table(table(L3W3$q12.5, L3W3$country), 2)*100), 2)  
+tab
+
+### interesting differences compared to wave 1 + wave 2
+
+
+
+
+#Intention to use   f16_10 & q15.1
+round((prop.table(table(L3P$f16_10))*100), 2)
+L3P$f16_10 <- dplyr::na_if(L3P$f16_10, 6)   # setting cat 6 don't know to NA
+tab <- round((prop.table(table(L3P$cname, L3P$f16_10), 1)*100), 2)
+tab
+
+L3P$f16_10n[L3P$f16_10==1]  <- "Disagree"
+L3P$f16_10n[L3P$f16_10==2]  <- "Disagree"
+L3P$f16_10n[L3P$f16_10==3]  <- "Neutral"
+L3P$f16_10n[L3P$f16_10==4]  <- "Agree"
+L3P$f16_10n[L3P$f16_10==5]  <- "Agree"
+L3P$f16_10n[L3P$f16_10==6]  <- NA
+table(L3P$f16_10n)
+
+# INTEND TO USE OVERALL
+round((prop.table(table(L3P$f16_10n))*100), 2)
+use <- round((prop.table(table(L3P$cA2, L3P$f16_10n), 1)*100), 2)
+use
+write.csv2(use,"f16_10n_intend to use_across all countries_WO NA_3cat.csv") 
+
+
+round((prop.table(table(L3W3$q15.1))*100), 2)
+
+```
+
+```{r code mobility modes, echo=TRUE, warning=FALSE, message=FALSE}
+# MOBILITY MODES
+
+# mobility behaviour: comparing different mobility modes per country
+s4vars <- c("s4_1","s4_2","s4_3","s4_4","s4_5","s4_6","s4_7","s4_8","s4_9","s4_10")
+L3P <- L3P %>% mutate_at(all_of(s4vars), ~replace(.,.==7, NA))
+
+
+## Germany
+DE <- L3P[L3P$cname=="Germany",]
+j <- apply(DE[s4vars],2,table)
+j
+
+J <- prop.table(j,2)
+J <- round((prop.table(j, 2)*100),2)
+J
+write.csv2(J,"Mobility_Germany.csv")
+
+colnames(J) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km", 
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(J, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Germany")
+legend(x="bottom",legend=s4vallab, col=s4vallabc, lty=5, lwd=3,
+       ncol=3, border=F, xpd=T, inset=c(0,-0.25), bty="n")
+
+dev.copy(jpeg,"Mobility_Germany.jpeg",width=640, height=380, quality=100)
+dev.off()
+
+
+## USA
+US <- L3P[L3P$cname=="USA",]
+u <- apply(US[s4vars],2,table)
+u
+
+U <- prop.table(u,2)
+U <- round((prop.table(U, 2)*100),2)
+U
+write.csv2(U,"Mobility_USA.csv")
+
+
+colnames(U) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more","airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(U, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="USA")
+legend(x="bottom",legend=s4vallab, col=s4vallabc, lty=5, lwd=3,
+       ncol=3, border=F, xpd=T, inset=c(0,-0.25), bty="n")
+
+dev.copy(jpeg, "Mobility_USA.jpeg", width=640, height=380, quality=100)
+dev.off()
+
+
+## UK
+UK <- L3P[L3P$cname=="UK",]
+k <- apply(UK[s4vars],2,table)
+k
+
+K <- prop.table(k,2)
+K <- round((prop.table(K, 2)*100),2)
+K
+write.csv2(K,"Mobility_United Kingdom.csv")
+
+
+colnames(K) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(K, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="United Kingdom")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_United Kingdom.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Sweden
+SW <- L3P[L3P$cname=="Sweden",]
+s <- apply(SW[s4vars],2,table)
+s
+
+S <- prop.table(s,2)
+S <- round((prop.table(S, 2)*100),2)
+S
+write.csv2(S,"Mobility_Sweden.csv")
+
+
+colnames(S) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(S, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Sweden")
+legend(x="bottom", legend=s4vallab, col=s4vallabc, lty=5, lwd=3,
+       ncol=3, border=F, xpd=T, inset=c(0,-0.25), bty="n")
+
+dev.copy(jpeg,"Mobility_Sweden.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## France
+FR <- L3P[L3P$cname=="France",]
+r <- apply(FR[s4vars],2,table)
+r
+
+R <- prop.table(r,2)
+R <- round((prop.table(R, 2)*100),2)
+R
+write.csv2(R,"Mobility_France.csv")
+
+
+colnames(R) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(R, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="France")
+legend(x="bottom", legend=s4vallab, col=s4vallabc, lty=5, lwd=3,
+       ncol=3, border=F, xpd=T, inset=c(0,-0.25), bty="n")
+
+dev.copy(jpeg,"Mobility_France.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Hungary
+HU <- L3P[L3P$cname=="Hungary",]
+h <- apply(HU[s4vars],2,table)
+h
+
+H <- prop.table(h,2)
+H <- round((prop.table(H, 2)*100),2)
+H
+write.csv2(H,"Mobility_Hungary.csv")
+
+
+colnames(H) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(H, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Hungary")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3, border=F, xpd=T, inset=c(0,-0.25), bty="n")
+
+dev.copy(jpeg,"Mobility_Hungary.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Italy
+IT <- L3P[L3P$cname=="Italy",]
+IT
+a <- apply(IT[s4vars],2,table)
+a
+
+A <- prop.table(a,2)
+A <- round((prop.table(A, 2)*100),2)
+A
+write.csv2(A,"Mobility_Italy.csv")
+
+
+colnames(A) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(A, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Italy")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Italy.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Finland
+FL <- L3P[L3P$cname=="Finland",]
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+#summary(FL[s4vars])
+
+FL2 <- FL[s4_w]
+b <- apply(FL2,2,table)
+b
+b <- as.data.frame(b)
+b$s4_10 <- NA
+b$s4_10 <- c(0,4,5,17,556,434)  #adding the var that was missing
+b
+
+B <- prop.table(as.matrix(b),2)
+B <- round((prop.table(B, 2)*100),2)
+B
+write.csv2(B,"Mobility_Finland.csv")
+
+
+colnames(B) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(B, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Finland")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Finland.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Spain
+SP <- L3P[L3P$cname=="Spain",]
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+
+SP2 <- SP[s4_w]
+l <- apply(SP2,2,table)
+l
+l <- as.data.frame(l)
+l$s4_10 <- NA
+l$s4_10 <- c(0,18,18,71,590,371)  #adding the var that was missing
+l
+
+L <- prop.table(as.matrix(l),2)
+L <- round((prop.table(L, 2)*100),2)
+L
+write.csv2(L,"Mobility_Spain.csv")
+
+colnames(L) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(L, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Spain")
+legend(x="bottom", legend=s4vallab, col=s4vallabc, lty=5, lwd=3,
+       ncol=3, border=F, xpd=T, inset=c(0,-0.25), bty="n")
+
+dev.copy(jpeg,"Mobility_Spain.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Brazil
+BR <- L3P[L3P$cname=="Brazil",]
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+
+BR2 <- BR[s4_w]
+n <- apply(BR2,2,table)
+n
+n <- as.data.frame(n)
+n$s4_10 <- NA
+n$s4_10 <- c(0,28,27,125,482,377)  #adding the var that was missing
+n
+
+N <- prop.table(as.matrix(n),2)
+N <- round((prop.table(N, 2)*100),2)
+N
+write.csv2(N,"Mobility_Brazil.csv")
+
+
+colnames(N) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(N, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Brazil")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Brazil.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Indonesia
+IO <- L3P[L3P$cname=="Indonesia",]
+o <- apply(IO[s4vars],2,table)
+o
+
+O <- prop.table(o,2)
+O <- round((prop.table(O, 2)*100),2)
+O
+write.csv2(O,"Mobility_Indonesia.csv")
+
+
+colnames(O) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(O, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Indonesia")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Indonesia.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## India
+IN <- L3P[L3P$cname=="India",]
+z <- apply(IN[s4vars],2,table)
+z
+Z <- prop.table(z,2)
+Z <- round((prop.table(Z, 2)*100),2)
+Z
+write.csv2(Z,"Mobility_India.csv")
+
+
+colnames(Z) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(Z, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="India")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_India.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Japan
+JA <- L3P[L3P$cname=="Japan",]
+p <- apply(JA[s4vars],2,table)
+p
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+
+JA2 <- JA[s4_w]
+p <- apply(JA2,2,table)
+p
+p <- as.data.frame(p)
+p$s4_10 <- NA
+p$s4_10 <- c(0,12,13,45,303,693)  #adding the var that was missing
+p
+
+P <- prop.table(as.matrix(p),2)
+P <- round((prop.table(P, 2)*100),2)
+P
+write.csv2(P,"Mobility_Japan.csv")
+
+colnames(P) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(P, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Japan")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Japan.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Russia 
+RU <- L3P[L3P$cname=="Russia",]
+v <- apply(RU[s4vars],2,table)
+v
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+
+RU2 <- RU[s4_w]
+v <- apply(RU2,2,table)
+v
+v <- as.data.frame(v)
+v$s4_10 <- NA
+v$s4_10 <- c(0,3,3,35,592,431)  #adding the var that was missing
+v
+V <- prop.table(as.matrix(v),2)
+V <- round((prop.table(V, 2)*100),2)
+V
+write.csv2(V,"Mobility_Russia.csv")
+
+colnames(V) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(V, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Russia")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Russia.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## South Africa 
+SA <- L3P[L3P$cname=="South Africa",]
+d <- apply(SA[s4vars],2,table)
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+
+SA2 <- SA[s4_w]
+d <- apply(SA2,2,table)
+d
+d <- as.data.frame(d)
+d$s4_10 <- NA
+d$s4_10 <- c(0,9,15,93,523,420)  #adding the var that was missing
+d
+D <- prop.table(as.matrix(d),2)
+D <- round((prop.table(D, 2)*100),2)
+D
+write.csv2(D,"Mobility_SouthAfrica.csv")
+
+colnames(D) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(D, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="South Africa")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_SouthAfrica.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## Turkey 
+TU <- L3P[L3P$cname=="Turkey",]
+w <- apply(TU[s4vars],2,table)
+w
+s4_w <- s4vars[1:9]  #these are the complete variables, no missing item
+s4_w
+
+TU2 <- TU[s4_w]
+w <- apply(TU2,2,table)
+w
+w <- as.data.frame(w)
+w$s4_10 <- NA
+w$s4_10 <- c(0,34,30,165,638,182)  #adding the var that was missing
+w
+W <- prop.table(as.matrix(w),2)
+W <- round((prop.table(W, 2)*100),2)
+W
+write.csv2(W,"Mobility_Turkey.csv")
+
+colnames(W) <- c("walking 500m","private bike", "rental bike", "motorcycle", 
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(W, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="Turkey")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_Turkey.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+## China 
+CH <- L3P[L3P$cname=="China",]
+y <- apply(CH[s4vars],2,table)
+y
+Y <- prop.table(y,2)
+Y <- round((prop.table(Y, 2)*100),2)
+Y
+write.csv2(Y,"Mobility_China.csv")
+
+colnames(Y) <- c("walking 500m","private bike","rental bike","motorcycle",
+                 "private car driver", "rental/shared car driver",
+                 "car passenger","public transport max 50km",
+                 "public transport 50km or more", "airplane")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(Y, horiz=T, cex.names=0.9, col=s4vallabc, las=1, cex.axis = 0.8, border=F, main="China")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.25),bty="n")
+
+dev.copy(jpeg,"Mobility_China.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+
+# different mobility modes for all countries (focus one mode)
+
+q <- table(L3P$s4_5, L3P$cname,useNA="always")    #"private car driver",
+q2 <- prop.table(table(L3P$s4_5, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+q2
+write.csv2(q2,"Mobility_Mode_privateCarDriver_all countries.csv")
+
+colnames(q2) <- c("Brazil","China","Germany","Finland","France","India",
+                  "Indonesia","Italy","Japan","Russia", "South Africa",
+                  "Spain","Sweden","Turkey","United Kingdom","Hungary","USA")
+
+s4vallab <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+              "1-3 days per month", "less than once per month", "(almost) never")
+
+s4vallabc <- c("royalblue","royalblue1","royalblue2","royalblue3","royalblue4",
+               "darkblue")
+
+par(mar=c(4.1, 11.1, 3.1, 1.5), mgp=c(2, 0.5, 0))
+barplot(q2,horiz=T, cex.names=0.9, col=s4vallabc,las=1, cex.axis = 0.8, border=F, main="private car driver")
+legend(x="bottom",legend=s4vallab,col=s4vallabc,lty=5,lwd=3,
+       ncol=3,border=F,xpd=T,inset=c(0,-0.23),bty="n")
+
+dev.copy(jpeg,"Mobility_Mode_private car driver.jpeg",width=640,height=380, quality=100)
+dev.off()
+
+q <- table(L3P$s4_6,L3P$cname,useNA="always")    #"rental/shared car driver",
+q2 <- prop.table(table(L3P$s4_6, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+q2
+write.csv2(q2,"Mobility_Mode_rentedSharedCar_all countries.csv")
+
+q <- table(L3P$s4_7,L3P$cname,useNA="always")    #"car passenger",
+q2 <- prop.table(table(L3P$s4_7, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+q2
+write.csv2(q2,"Mobility_Mode_carPassenger_all countries.csv")
+
+q <- table(L3P$s4_8,L3P$cname,useNA="always")    #"public transport max 50km",
+q2 <- prop.table(table(L3P$s4_8, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+q2
+write.csv2(q2,"Mobility_Mode_pubTrans50km_all countries.csv")
+
+q <- table(L3P$s4_9,L3P$cname,useNA="always")    #"public transport 50km or more",
+q2 <- prop.table(table(L3P$s4_9, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+q2
+write.csv2(q2,"Mobility_Mode_pubTransMorethan50km_all countries.csv")
+
+q <- table(L3P$s4_10,L3P$cname,useNA="always")    #"airplane"
+q2 <- prop.table(table(L3P$s4_10, L3P$cname), 2)
+q2 <- round((prop.table(q2, 2)*100),2)
+q2
+write.csv2(q2,"Mobility_Mode_airplane_all countries.csv")
+
+#_____________________________________________________________
+save(L3P, file="L3P.Rdata_edited")
+```
+
+#Some tables getting into the data
+##Gender - Countries (prob.)
+```{r, layout="l-body-outset"}
+library(knitr)
+kable(head(g))
+#g #country - gender - tabled
+```
+#Germany - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#J #Germany - mobility modes - tabled
+rownames(J) <- c("almost daily", "4-5 days per week", "1-3 days per week",
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(J, digits = 2)
+```
+#USA - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#U #USA - mobility modes - tabled
+rownames(U) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(U, digits = 2)
+```
+#UK - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#K #UK - mobility modes - tabled
+rownames(K) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(K, digits = 2)
+```
+#Sweden - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#S #Sweden  - mobility modes - tabled
+rownames(S) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(S, digits = 2)
+```
+#France - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#R #France - mobility modes - tabled
+rownames(R) <- c("almost daily", "4-5 days per week", "1-3 days per week",
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(R, digits = 2)
+```
+#Hungary - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#H #Hungary - mobility modes - tabled
+rownames(H) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(H, digits = 2)
+```
+#Italy - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#A #Italy - mobility modes - tabled
+rownames(A) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(A, digits = 2)
+```
+#Finland - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#B #Finland - mobility modes - tabled
+rownames(B) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(B, digits = 2)
+```
+#China - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#Y #China - mobility modes - tabled
+rownames(Y) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(Y, digits = 2)
+```
+#Spain - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#L #Spain - mobility modes - tabled
+rownames(L) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(L, digits = 2)
+```
+#Brazil - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#N #Brazil - mobility modes - tabled
+rownames(N) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(N, digits = 2)
+```
+#Indonesia - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#O #Indonesia - mobility modes - tabled
+rownames(O) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(O, digits = 2)
+```
+#India - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#Z #India - mobility modes - tabled
+rownames(Z) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(Z, digits = 2)
+```
+#Japan - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#P #Japan - mobility modes - tabled
+rownames(P) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(P, digits = 2)
+```
+#Russia - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#V #Russia - mobility modes - tabled
+rownames(V) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(V, digits = 2)
+```
+#South Africa - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#D #South Africa - mobility modes - tabled
+rownames(D) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(D, digits = 2)
+```
+#Turkey - Mobility modes
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+W #Turkey - mobility modes - tabled
+rownames(W) <- c("almost daily", "4-5 days per week", "1-3 days per week", 
+                 "1-3 days per month", "less than once per month", "(almost) never")
+knitr::kable(W, digits = 2)
+```
+
+#Enthusiasts - Neutrals - Sceptics across countries
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#e #Enthusiasts - Neutrals - Sceptics across countries
+knitr::kable(e, digits = 2)
+```
+
+
+## Further analyses (ppt slide set)
+
+```{r ENS Typo Gruppenvergleiche}
+# AGE
+t <- L3P %>%
+  tabyl(cage, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "age", col_name = "ENS")
+t
+write.csv2(t,"age_ENS_split countries_WO ABS.csv")
+
+# GENDER
+L3P$s2 <- dplyr::na_if(L3P$s2, 3)
+t <- L3P %>%
+  tabyl(s2, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "gender", col_name = "ENS")
+t
+write.csv2(t,"gender_ENS_split countries_WO ABS.csv")
+
+# f6
+# t <- L3P %>%
+#   tabyl(f6, ENS, cname, show_na = FALSE) %>%
+#   adorn_percentages("col") %>%
+#   adorn_pct_formatting(digits = 1) %>%
+#   adorn_ns() %>%
+#   adorn_title("top", row_name = "f6", col_name = "ENS")
+# t
+# write.csv2(t,"f6_ENS_split countries.csv")
+
+t <- L3P %>%
+  tabyl(f6, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f6", col_name = "ENS")
+t
+write.csv2(t,"f6_ENS_split countries_WO ABS.csv")
+
+# f7
+t <- L3P %>%
+  tabyl(f7, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f7", col_name = "ENS")
+t
+write.csv2(t,"f7_ENS_split countries_WO ABS.csv")
+
+# f8
+t <- L3P %>%
+  tabyl(f8, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f8", col_name = "ENS")
+t
+write.csv2(t,"f8_ENS_split countries_WO ABS.csv")
+
+# f9
+t <- L3P %>%
+  tabyl(f9, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f9", col_name = "ENS")
+t
+write.csv2(t,"f9_ENS_split countries_WO ABS.csv")
+
+# f10
+t <- L3P %>%
+  tabyl(f10, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f10", col_name = "ENS")
+t
+write.csv2(t,"f10_ENS_split countries_WO ABS.csv")
+
+# f11
+t <- L3P %>%
+  tabyl(f11, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f11", col_name = "ENS")
+t
+write.csv2(t,"f11_ENS_split countries_WO ABS.csv")
+
+# f12_1 - f12_5
+t <- L3P %>%
+  tabyl(f12_1, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f12_1", col_name = "ENS")
+t
+write.csv2(t,"f12_1_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f12_2, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f12_2", col_name = "ENS")
+t
+write.csv2(t,"f12_2_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f12_3, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f12_3", col_name = "ENS")
+t
+write.csv2(t,"f12_3_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f12_4, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f12_4", col_name = "ENS")
+t
+write.csv2(t,"f12_4_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f12_5, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f12_5", col_name = "ENS")
+t
+write.csv2(t,"f12_5_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f12_6, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f12_6", col_name = "ENS")
+t
+write.csv2(t,"f12_6_ENS_split countries_WO ABS.csv")
+
+# f21_1 - f21_4
+t <- L3P %>%
+  tabyl(f21_1, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f21_1", col_name = "ENS")
+t
+write.csv2(t,"f21_1_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f21_2, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f21_2", col_name = "ENS")
+t
+write.csv2(t,"f21_2_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f21_3, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f21_3", col_name = "ENS")
+t
+write.csv2(t,"f21_3_ENS_split countries_WO ABS.csv")
+
+t <- L3P %>%
+  tabyl(f21_4, ENS, cname, show_na = FALSE) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_title("top", row_name = "f21_4", col_name = "ENS")
+t
+write.csv2(t,"f21_4_ENS_split countries_WO ABS.csv")
+
+
+```
+
+
+```{r datset exports}
+dataset <- read_excel("L3Pilot_Global_User_Acceptance_Survey_1st_Phase.xlsx", sheet = 2)
+head(dataset)
+save(dataset, file="L3Pilot_Global_User_Acceptance_Survey_1st_Phase.Rdata")
+library(foreign)
+write.foreign(dataset, "./L3Pilot_Global_User_Acceptance_Survey_1st_Phase.txt", "./L3Pilot_Global_User_Acceptance_Survey_1st_Phase.sps", package="SPSS")
+library(haven)
+write_sav(dataset, "L3Pilot_Global_User_Acceptance_Survey_1st_Phase.sav")
+
+dataset2 <- read_excel("L3Pilot_Global_User_Acceptance_Survey_1st_Phase_Without_WTP.xlsx", sheet = 2)
+head(dataset2)
+save(dataset2, file="L3Pilot_Global_User_Acceptance_Survey_1st_Phase_Without_WTP.Rdata")
+library(foreign)
+write.foreign(dataset2, "./L3Pilot_Global_User_Acceptance_Survey_1st_Phase_Without_WTP.txt", "./L3Pilot_Global_User_Acceptance_Survey_1st_Phase_Without_WTP.sps", package="SPSS")
+library(haven)
+write_sav(dataset2, "L3Pilot_Global_User_Acceptance_Survey_1st_Phase_Without_WTP.sav")
+```
+
